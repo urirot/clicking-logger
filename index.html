@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Click Timeline</title>
+<meta name="description" content="Tap 1, 2 or 3 to stamp the time. See every tap on a timeline.">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clicks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1 id="screen-title">Tap</h1>
+  <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
+    <span aria-hidden="true" id="theme-glyph">◐</span>
+  </button>
+</header>
+
+<main>
+
+  <!-- ══ Screen 1 — the tap pad ═══════════════════════════════ -->
+  <section id="panel-tap" role="tabpanel" aria-labelledby="tab-tap" tabindex="-1">
+    <div class="pad" aria-label="Record a click">
+      <button class="tap tap-1" type="button" data-btn="1">
+        <span class="tap-num">1</span>
+        <span class="tap-count" id="count-1">0</span>
+      </button>
+      <button class="tap tap-2" type="button" data-btn="2">
+        <span class="tap-num">2</span>
+        <span class="tap-count" id="count-2">0</span>
+      </button>
+      <button class="tap tap-3" type="button" data-btn="3">
+        <span class="tap-num">3</span>
+        <span class="tap-count" id="count-3">0</span>
+      </button>
+    </div>
+
+    <p class="last-line" id="last-line" role="status" aria-live="polite">No clicks yet — tap a button.</p>
+    <p class="pad-caption">Badges count today. Tap <b>Timeline</b> below for the chart and the full log.</p>
+  </section>
+
+  <!-- ══ Screen 2 — timeline, log, data ══════════════════════ -->
+  <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="-1" hidden>
+
+    <div class="filters" role="group" aria-label="Time range">
+      <button class="chip is-selected" type="button" data-range="today" aria-pressed="true">Today</button>
+      <button class="chip" type="button" data-range="7" aria-pressed="false">7 days</button>
+      <button class="chip" type="button" data-range="30" aria-pressed="false">30 days</button>
+      <button class="chip" type="button" data-range="all" aria-pressed="false">All</button>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Clicks over time</h2>
+        <p class="card-sub" id="chart-sub">&nbsp;</p>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><i class="key key-3" aria-hidden="true"></i>Button 3 · <b id="legend-3">0</b></span>
+        <span class="legend-item"><i class="key key-2" aria-hidden="true"></i>Button 2 · <b id="legend-2">0</b></span>
+        <span class="legend-item"><i class="key key-1" aria-hidden="true"></i>Button 1 · <b id="legend-1">0</b></span>
+      </div>
+
+      <div class="chart-wrap">
+        <p class="sr-only" id="chart-title-a11y">Timeline of clicks. Each row is a button (1 at the bottom, 3 at the top); each dot is one click at the time shown on the horizontal axis. The log table below lists the same data.</p>
+        <svg id="chart" role="img" aria-labelledby="chart-title-a11y"></svg>
+        <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+        <p class="empty" id="chart-empty" hidden>Nothing in this range.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Log</h2>
+        <p class="card-sub" id="table-sub">&nbsp;</p>
+      </div>
+      <div class="table-wrap">
+        <table id="log">
+          <caption class="sr-only">Every recorded click in the selected range, newest first</caption>
+          <thead>
+            <tr><th scope="col">#</th><th scope="col">Button</th><th scope="col">Time</th><th scope="col"><span class="sr-only">Delete</span></th></tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+        <p class="empty" id="table-empty" hidden>Nothing in this range.</p>
+      </div>
+    </section>
+
+    <section class="actions" aria-label="Data">
+      <button class="btn" type="button" id="undo">Undo last</button>
+      <button class="btn" type="button" id="export">Export JSON</button>
+      <button class="btn" type="button" id="import">Import JSON</button>
+      <button class="btn btn-danger" type="button" id="clear">Clear all</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+    </section>
+
+    <p class="footnote">
+      Everything is stored only in this browser (<code>localStorage</code>) — no server, no account.
+      Export a JSON backup before clearing site data.
+    </p>
+  </section>
+
+</main>
+
+<!-- ══ Tab bar ═══════════════════════════════════════════════ -->
+<nav class="tabbar" role="tablist" aria-label="Screens">
+  <button class="tabbtn is-active" type="button" role="tab" id="tab-tap"
+          aria-controls="panel-tap" aria-selected="true" data-panel="panel-tap" data-title="Tap">
+    <span class="tabbtn-glyph" aria-hidden="true">⊙</span>Tap
+  </button>
+  <button class="tabbtn" type="button" role="tab" id="tab-data"
+          aria-controls="panel-data" aria-selected="false" tabindex="-1" data-panel="panel-data" data-title="Timeline">
+    <span class="tabbtn-glyph" aria-hidden="true">⋯</span>Timeline
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

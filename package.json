@@ -1,0 +1,12 @@
+{
+  "name": "click-timeline",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tap 1, 2 or 3 to stamp the time; see every tap on a timeline.",
+  "scripts": {
+    "serve": "python3 -m http.server 8731",
+    "test": "node tools/smoke-test.mjs",
+    "icons": "python3 tools/make_icons.py"
+  },
+  "devDependencies": { "jsdom": "^26.0.0" }
+}

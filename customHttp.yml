@@ -1,0 +1,25 @@
+customHeaders:
+  - pattern: '/index.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache, must-revalidate'
+  - pattern: '/sw.js'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache, must-revalidate'
+      - key: 'Service-Worker-Allowed'
+        value: '/'
+  - pattern: '/manifest.webmanifest'
+    headers:
+      - key: 'Content-Type'
+        value: 'application/manifest+json'
+      - key: 'Cache-Control'
+        value: 'no-cache, must-revalidate'
+  - pattern: '**/*.@(js|css)'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache, must-revalidate'
+  - pattern: '**/*.png'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=604800'

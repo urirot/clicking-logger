@@ -1,0 +1,18 @@
+# Amplify Hosting build spec.
+#
+# This app is plain static files — no bundler, no dependencies at build time.
+# The phases are declared explicitly so Amplify does NOT auto-detect Node and run
+# `npm ci`: package-lock.json is gitignored (jsdom is a local test-only dependency),
+# so an auto-detected install would fail the build.
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - bash tools/build-dist.sh
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths: []
