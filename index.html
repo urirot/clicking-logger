@@ -45,7 +45,7 @@
     </div>
 
     <p class="last-line" id="last-line" role="status" aria-live="polite">No clicks yet — tap a button.</p>
-    <p class="pad-caption">Badges count today. Tap <b>Timeline</b> below for the chart and the full log.</p>
+    <p class="pad-caption">Badges count today. Tap <b>Timeline</b> below for the chart, per-day trends and the full log.</p>
   </section>
 
   <!-- ══ Screen 2 — timeline, log, data ══════════════════════ -->
@@ -64,6 +64,11 @@
         <p class="card-sub" id="chart-sub">&nbsp;</p>
       </div>
 
+      <div class="seg" role="group" aria-label="Chart detail">
+        <button class="seg-btn" type="button" id="mode-clicks" data-mode="clicks" aria-pressed="false">Each click</button>
+        <button class="seg-btn" type="button" id="mode-buckets" data-mode="buckets" aria-pressed="false">Per day</button>
+      </div>
+
       <div class="legend">
         <span class="legend-item"><i class="key key-3" aria-hidden="true"></i>Button 3 · <b id="legend-3">0</b></span>
         <span class="legend-item"><i class="key key-2" aria-hidden="true"></i>Button 2 · <b id="legend-2">0</b></span>
@@ -72,6 +77,7 @@
 
       <div class="chart-wrap">
         <p class="sr-only" id="chart-title-a11y">Timeline of clicks. Each row is a button (1 at the bottom, 3 at the top); each dot is one click at the time shown on the horizontal axis. The log table below lists the same data.</p>
+        <!-- rewritten by render() — the two views need different descriptions -->
         <svg id="chart" role="img" aria-labelledby="chart-title-a11y"></svg>
         <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
         <p class="empty" id="chart-empty" hidden>Nothing in this range.</p>

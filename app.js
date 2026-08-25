@@ -5,13 +5,15 @@
 
   const STORE_KEY = 'click-timeline/v1';
   const THEME_KEY = 'click-timeline/theme';
+  const MODE_KEY  = 'click-timeline/chart-mode';
   const SERIES = { 1: 'var(--series-1)', 2: 'var(--series-2)', 3: 'var(--series-3)' };
   const DAY = 86400000;
 
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
   let range = 'today';
-  let active = null;            // hovered click id
+  let modePref = loadMode();    // 'auto' | 'clicks' | 'buckets' — chart detail
+  let active = null;            // hovered click id, or 'bk:<ms>' for a hovered bucket
 
   function load() {
     try {
@@ -32,10 +34,19 @@
     }
   }
 
+  function loadMode() {
+    try {
+      const v = localStorage.getItem(MODE_KEY);
+      return v === 'clicks' || v === 'buckets' ? v : 'auto';
+    } catch { return 'auto'; }
+  }
+
   /* ── Formatting ────────────────────────────────────────── */
   const fTime = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
   const fSec  = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const fDay  = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+  const fWkDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  const fMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
   const fFull = new Intl.DateTimeFormat(undefined, {
     weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
@@ -60,6 +71,90 @@
   }
 
   const inRange = ([t0, t1]) => clicks.filter(c => c.t >= t0 && c.t <= t1);
+
+  /* ── Aggregation — counts per hour / day / week / month ───
+     The bucket follows the visible span, so "Per day" becomes "Per hour" on
+     Today and "Per week"/"Per month" once the domain outgrows a daily bar. */
+  const BUCKET_NOUN = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
+
+  function bucketOf([t0, t1]) {
+    const span = t1 - t0;
+    if (span <=   2 * DAY) return 'hour';
+    if (span <= 120 * DAY) return 'day';
+    if (span <= 1095 * DAY) return 'week';
+    return 'month';
+  }
+
+  // Aggregate on every range but Today, until the toggle is used explicitly
+  const aggregated = () => (modePref === 'auto' ? range !== 'today' : modePref === 'buckets');
+
+  function bucketStart(t, bucket) {
+    const d = new Date(t);
+    d.setMinutes(0, 0, 0);
+    if (bucket === 'hour') return d.getTime();
+    d.setHours(0, 0, 0, 0);
+    if (bucket === 'day') return d.getTime();
+    if (bucket === 'week') { d.setDate(d.getDate() - d.getDay()); return d.getTime(); }
+    d.setDate(1);
+    return d.getTime();
+  }
+
+  // Stepped with Date methods, not +N ms, so DST shifts don't drift the edges
+  function bucketNext(t, bucket) {
+    const d = new Date(t);
+    if (bucket === 'hour')      d.setHours(d.getHours() + 1);
+    else if (bucket === 'day')  d.setDate(d.getDate() + 1);
+    else if (bucket === 'week') d.setDate(d.getDate() + 7);
+    else                        d.setMonth(d.getMonth() + 1);
+    return d.getTime();
+  }
+
+  const MAX_BUCKETS = 2000;   // guard: a pathological domain can't hang the render
+
+  function buckets(data, [t0, t1], bucket) {
+    const out = [], byStart = new Map();
+    for (let t = bucketStart(t0, bucket); t <= t1 && out.length < MAX_BUCKETS; t = bucketNext(t, bucket)) {
+      const bk = { t, end: bucketNext(t, bucket), k: bucket, n: [0, 0, 0, 0], total: 0 };
+      byStart.set(t, bk);
+      out.push(bk);
+    }
+    for (const c of data) {
+      const bk = byStart.get(bucketStart(c.t, bucket));
+      if (bk) { bk.n[c.b]++; bk.total++; }
+    }
+    return out;
+  }
+
+  function bucketCount([t0, t1], bucket) {
+    let n = 0;
+    for (let t = bucketStart(t0, bucket); t <= t1 && n < MAX_BUCKETS; t = bucketNext(t, bucket)) n++;
+    return n;
+  }
+
+  const bucketId = bk => `bk:${bk.t}`;
+
+  function bucketLabel(bk) {
+    const d = new Date(bk.t);
+    if (bk.k === 'hour')  return `${fDay.format(d)} · ${fTime.format(d)}`;
+    if (bk.k === 'day')   return fWkDay.format(d);
+    if (bk.k === 'week')  return `Week of ${fDay.format(d)}`;
+    return fMonth.format(d);
+  }
+
+  /* Period-over-period change. Only stated when the previous window is fully
+     covered by recorded history — otherwise "up 300%" is just the log starting. */
+  function trendNote([t0, t1]) {
+    if (range !== '7' && range !== '30') return '';
+    const span = t1 - t0;
+    if (!clicks.length || clicks[0].t > t0 - span) return '';
+    const cur  = clicks.filter(c => c.t >= t0 && c.t <= t1).length;
+    const prev = clicks.filter(c => c.t >= t0 - span && c.t < t0).length;
+    if (!prev) return '';
+    const days = Math.round(span / DAY);
+    const pct = Math.round(((cur - prev) / prev) * 100);
+    if (pct === 0) return `level vs previous ${days} days`;
+    return `${pct > 0 ? '↑' : '↓'} ${Math.abs(pct)}% vs previous ${days} days`;
+  }
 
   /* ── Axis ticks (local-time aligned) ───────────────────── */
   const STEPS = [
@@ -101,15 +196,17 @@
   };
 
   /* ── Chart ─────────────────────────────────────────────── */
-  let hits = [];   // { x, y, c } in px, for nearest-point hover
+  let hits  = [];   // { x, y, c }  dot mode: one entry per click
+  let bhits = [];   // { x, bk }    bucket mode: one entry per time bucket
 
   function drawChart(data, [t0, t1]) {
     svg.textContent = '';
     hits = [];
+    bhits = [];
     const empty = !data.length;
     $('chart-empty').hidden = !empty;
     svg.style.visibility = empty ? 'hidden' : 'visible';
-    if (empty) return;
+    if (empty) { tooltip.hidden = true; return; }
 
     const w = svg.clientWidth || svg.getBoundingClientRect().width;
     const h = svg.clientHeight || 210;
@@ -120,30 +217,42 @@
     const iw = Math.max(w - m.left - m.right, 10);
     const ih = Math.max(h - m.top - m.bottom, 10);
     const x = t => m.left + ((t - t0) / (t1 - t0 || 1)) * iw;
-    const laneH = ih / 3;
-    const y = b => m.top + laneH * (3 - b + 0.5);   // 1 at the bottom, 3 at the top
+    const geo = { m, iw, ih, x, laneH: ih / 3 };
 
     // Gridlines + x labels
     const tickTarget = w < 380 ? 4 : w < 560 ? 5 : 7;
     for (const tk of ticks(t0, t1, tickTarget)) {
       const px = x(tk.t);
       svg.append(el('line', { class: 'gridline', x1: px, x2: px, y1: m.top, y2: m.top + ih }));
-      const label = el('text', { x: px, y: h - 8, 'text-anchor': 'middle' });
+      // Anchor the outermost labels inward instead of letting them hang off the edge
+      const edge = px > w - 30 ? ['end', w - 4] : px < 30 ? ['start', 4] : ['middle', px];
+      const label = el('text', { x: edge[1], y: h - 8, 'text-anchor': edge[0] });
       label.textContent = tickLabel(tk);
       svg.append(label);
     }
+
+    if (aggregated()) drawBars(data, [t0, t1], geo);
+    else              drawDots(data, geo);
+  }
+
+  function laneLabel(b, yPx, m) {
+    const lab = el('text', { class: 'lane-label', x: m.left - 9, y: yPx, 'text-anchor': 'end' });
+    lab.textContent = String(b);
+    svg.append(lab);
+  }
+
+  /* ── One dot per click ─────────────────────────────────── */
+  function drawDots(data, { m, iw, ih, laneH, x }) {
+    const y = b => m.top + laneH * (3 - b + 0.5);   // 1 at the bottom, 3 at the top
 
     // Lane rules + labels (the direct-label relief for low-contrast series)
     for (const b of [1, 2, 3]) {
       svg.append(el('line', {
         class: 'lane-rule', x1: m.left, x2: m.left + iw, y1: y(b), y2: y(b), opacity: 0.55,
       }));
-      const lab = el('text', { class: 'lane-label', x: m.left - 9, y: y(b) + 4, 'text-anchor': 'end' });
-      lab.textContent = String(b);
-      svg.append(lab);
+      laneLabel(b, y(b) + 4, m);
     }
 
-    // Dots
     for (const c of data) {
       const cx = x(c.t), cy = y(c.b);
       hits.push({ x: cx, y: cy, c });
@@ -159,48 +268,148 @@
       svg.insertBefore(el('line', {
         class: 'crosshair', x1: hit.x, x2: hit.x, y1: m.top, y2: m.top + ih,
       }), svg.firstChild);
-      placeTooltip(hit);
+      dotTooltip(hit);
     } else {
       tooltip.hidden = true;
     }
   }
 
-  function placeTooltip(hit) {
+  /* ── Counts per bucket: three rows of bars, one row per button ──
+     Every row shares one scale, so row heights are comparable — that is the
+     whole point of the view. Square at the baseline, 4px rounded at the data
+     end, 2px of surface between neighbours. */
+  const LABEL_ROOM = 16;   // headroom kept above the tallest bar, clear of the lane rule above
+
+  function barPath(x0, yTop, w, hh, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, hh));
+    return `M${x0} ${yTop + hh}`
+         + `L${x0} ${yTop + rr}Q${x0} ${yTop} ${x0 + rr} ${yTop}`
+         + `L${x0 + w - rr} ${yTop}Q${x0 + w} ${yTop} ${x0 + w} ${yTop + rr}`
+         + `L${x0 + w} ${yTop + hh}Z`;
+  }
+
+  function drawBars(data, [t0, t1], { m, iw, ih, laneH, x }) {
+    const bks = buckets(data, [t0, t1], bucketOf([t0, t1]));
+    const peak = Math.max(1, ...bks.map(bk => Math.max(bk.n[1], bk.n[2], bk.n[3])));
+    const barMax = Math.max(laneH - LABEL_ROOM, 6);
+    const base = b => m.top + laneH * (3 - b + 1);   // lane baseline; 1 at the bottom
+
+    // Bucket edges clamped to the plot, so a part-covered first/last bucket
+    // stays inside the axes instead of bleeding into the label gutter
+    const span = bk => {
+      const sx = Math.max(x(bk.t), m.left);
+      const ex = Math.min(x(bk.end), m.left + iw);
+      return { sx, ex, slot: ex - sx };
+    };
+
+    const act = bks.find(bk => bucketId(bk) === active);
+    if (act) {
+      const { sx, slot } = span(act);
+      svg.append(el('rect', { class: 'band', x: sx, y: m.top, width: Math.max(slot, 2), height: ih }));
+    }
+
+    for (const b of [1, 2, 3]) {
+      const y0 = base(b);
+      svg.append(el('line', { class: 'lane-rule', x1: m.left, x2: m.left + iw, y1: y0, y2: y0 }));
+      laneLabel(b, y0 - 3, m);
+
+      let top = null;   // this row's own peak — the one bar that gets a value label
+      for (const bk of bks) {
+        if (!bk.n[b]) continue;
+        const { sx, slot } = span(bk);
+        if (slot <= 0) continue;
+        const bw = Math.max(1.5, Math.min(24, slot - 2));
+        const bx = sx + (slot - bw) / 2;
+        const bh = Math.max((bk.n[b] / peak) * barMax, 2);
+        svg.append(el('path', { class: 'bar', d: barPath(bx, y0 - bh, bw, bh, 4), fill: SERIES[b] }));
+        if (!top || bk.n[b] > top.n) top = { n: bk.n[b], x: bx + bw / 2, y: y0 - bh };
+      }
+      if (top && top.n > 1) {
+        const lab = el('text', {
+          class: 'bar-val', 'text-anchor': 'middle', y: top.y - 3,
+          x: Math.min(Math.max(top.x, m.left + 8), m.left + iw - 8),
+        });
+        lab.textContent = String(top.n);
+        svg.append(lab);
+      }
+    }
+
+    for (const bk of bks) {
+      const { sx, ex, slot } = span(bk);
+      if (slot > 0) bhits.push({ x: (sx + ex) / 2, bk });
+    }
+
+    if (act) bucketTooltip(act, span(act), m);
+    else tooltip.hidden = true;
+  }
+
+  /* ── Tooltips ──────────────────────────────────────────── */
+  function ttRow(b, text) {
+    const row = document.createElement('span');
+    row.className = 'tt-row';
+    const key = document.createElement('i');
+    key.className = 'tt-key';
+    key.style.background = SERIES[b];
+    row.append(key, document.createTextNode(text));
+    return row;
+  }
+
+  function dotTooltip(hit) {
     tooltip.textContent = '';
     const val = document.createElement('span');
     val.className = 'tt-val';
     val.textContent = fSec.format(new Date(hit.c.t));
-    const row = document.createElement('span');
-    const key = document.createElement('i');
-    key.className = 'tt-key';
-    key.style.background = SERIES[hit.c.b];
-    row.append(key, document.createTextNode(`Button ${hit.c.b} · ${fDay.format(new Date(hit.c.t))}`));
-    tooltip.append(val, row);
-    tooltip.hidden = false;
+    tooltip.append(val, ttRow(hit.c.b, `Button ${hit.c.b} · ${fDay.format(new Date(hit.c.t))}`));
+    placeTooltip(hit.x, hit.y);
+  }
 
+  function bucketTooltip(bk, { sx, ex }, m) {
+    tooltip.textContent = '';
+    const val = document.createElement('span');
+    val.className = 'tt-val';
+    val.textContent = `${bucketLabel(bk)} · ${plural(bk.total, 'click')}`;
+    tooltip.append(val);
+    for (const b of [3, 2, 1]) {           // top row first, so it reads like the chart
+      const row = ttRow(b, `Button ${b} · ${bk.n[b]}`);
+      if (!bk.n[b]) row.classList.add('is-zero');
+      tooltip.append(row);
+    }
+    placeTooltip((sx + ex) / 2, m.top);
+  }
+
+  function placeTooltip(px, py) {
+    tooltip.hidden = false;
     const wrap = tooltip.parentElement.getBoundingClientRect();
     const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-    const left = Math.min(Math.max(hit.x, tw / 2 + 2), Math.max(wrap.width - tw / 2 - 2, tw / 2 + 2));
-    const above = hit.y - 12 - th >= 0;
+    const left = Math.min(Math.max(px, tw / 2 + 2), Math.max(wrap.width - tw / 2 - 2, tw / 2 + 2));
+    const above = py - 12 - th >= 0;
     tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${above ? hit.y - 12 : hit.y + 12}px`;
+    tooltip.style.top = `${above ? py - 12 : py + 12}px`;
     tooltip.style.transform = above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)';
   }
 
+  /* ── Hover / tap ───────────────────────────────────────── */
   function nearest(px, py) {
     let best = null, bestD = Infinity;
+    if (aggregated()) {
+      // The whole bucket column is the hit target — no vertical aim needed
+      for (const p of bhits) {
+        const d = Math.abs(p.x - px);
+        if (d < bestD) { bestD = d; best = bucketId(p.bk); }
+      }
+      return best;
+    }
     for (const p of hits) {
       const d = (p.x - px) ** 2 + ((p.y - py) * 0.6) ** 2;   // favour horizontal aim
-      if (d < bestD) { bestD = d; best = p; }
+      if (d < bestD) { bestD = d; best = p.c.id; }
     }
-    return best && bestD <= 44 ** 2 ? best : null;
+    return bestD <= 44 ** 2 ? best : null;
   }
 
   function onPoint(ev) {
     const r = svg.getBoundingClientRect();
     const scale = (svg.viewBox.baseVal.width || r.width) / (r.width || 1);
-    const hit = nearest((ev.clientX - r.left) * scale, (ev.clientY - r.top) * scale);
-    const id = hit ? hit.c.id : null;
+    const id = nearest((ev.clientX - r.left) * scale, (ev.clientY - r.top) * scale);
     if (id !== active) { active = id; render(); }
   }
 
@@ -269,8 +478,34 @@
       : 'No clicks yet — tap a button.';
 
     const label = range === 'today' ? 'today' : range === 'all' ? 'all time' : `last ${range} days`;
-    $('chart-sub').textContent = `${plural(data.length, 'click')} · ${label}`;
+    const agg = aggregated();
+    const bucket = bucketOf(d);
+    const noun = BUCKET_NOUN[bucket];
+
+    const sub = [plural(data.length, 'click'), label];
+    if (agg) {
+      const avg = data.length / (bucketCount(d, bucket) || 1);
+      sub.push(`avg ${avg >= 10 ? Math.round(avg) : avg.toFixed(1)}/${noun}`);
+      const trend = trendNote(d);
+      if (trend) sub.push(trend);
+    }
+    $('chart-sub').textContent = sub.join(' · ');
     $('table-sub').textContent = `${plural(data.length, 'click')} · newest first`;
+
+    // Detail toggle: its label names the bucket the current span resolves to
+    $('mode-buckets').textContent = `Per ${noun}`;
+    for (const btn of document.querySelectorAll('.seg-btn')) {
+      const on = (btn.dataset.mode === 'buckets') === agg;
+      btn.classList.toggle('is-selected', on);
+      btn.setAttribute('aria-pressed', String(on));
+    }
+
+    $('chart-title-a11y').textContent = agg
+      ? `Clicks per ${noun}. Three rows, one per button (1 at the bottom, 3 at the top); `
+        + `each bar is how many clicks that button got in that ${noun}, on a scale shared by `
+        + `all three rows. The log table below lists every click.`
+      : 'Timeline of clicks. Each row is a button (1 at the bottom, 3 at the top); each dot is '
+        + 'one click at the time shown on the horizontal axis. The log table below lists the same data.';
 
     drawChart(data, d);
     drawTable(data);
@@ -325,6 +560,16 @@
         c.setAttribute('aria-pressed', String(on));
       });
       range = chip.dataset.range;
+      active = null;
+      active = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modePref = btn.dataset.mode;
+      try { localStorage.setItem(MODE_KEY, modePref); } catch {}
       active = null;
       render();
     });

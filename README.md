@@ -1,7 +1,8 @@
 # Click Timeline
 
 A one-page app: tap **1**, **2** or **3** to stamp the current time, then see every tap
-plotted on a time axis — buttons are the y lanes, time is x.
+plotted on a time axis — buttons are the y lanes, time is x. Past a single day the
+chart rolls the taps up into per-day counts so trends are readable.
 
 Built as an offline-capable PWA so it installs to an Android/iOS home screen and works
 with no signal.
@@ -75,7 +76,8 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Tap 1 / 2 / 3 | records a click at the current time |
 | Keys `1` `2` `3` | same, on a desktop keyboard |
 | Today / 7 / 30 / All | scopes the chart and the log |
-| Hover or tap the chart | crosshair + exact timestamp for the nearest dot |
+| Each click / Per day | one dot per tap, or counts per bucket (see **Chart notes**) |
+| Hover or tap the chart | dot view: exact timestamp of the nearest tap. Per-day view: the whole column, with every button's count for that bucket |
 | ◐ | cycles theme: auto → light → dark |
 | Undo last | drops the most recent click |
 | × in a log row | deletes that one click |
@@ -104,8 +106,8 @@ tools/build-dist.sh   copies just the 7 shipping files into dist/
 npm run serve      # http://localhost:8731
 ```
 
-Run the smoke test (~40 assertions over recording, chart geometry, filters, persistence,
-delete/undo, theme):
+Run the smoke test (~70 assertions over recording, both chart views, bar geometry and
+the shared scale, filters, persistence, delete/undo, theme):
 
 ```sh
 npm install && npm test
@@ -120,6 +122,22 @@ npm run icons
 **When deploying a change, bump `CACHE` in `sw.js`** so installed clients pick it up.
 
 ## Chart notes
+
+**Two views, one toggle.** *Each click* draws one dot per tap at its exact time — the
+right read for a single day. *Per day* aggregates instead: three rows of bars, one row
+per button, **on a scale shared by all three rows** so the rows are directly comparable.
+Only the peak bar in each row is labelled with its count; everything else is carried by
+the axis, the tooltip and the log table.
+
+The bucket follows the visible span, and the toggle's label names it — **Per hour** on
+Today, **Per day** out to 120 days, then **Per week** and **Per month**. Buckets are
+stepped with `Date` methods rather than fixed millisecond offsets, so a DST change
+doesn't drift the day boundaries. Aggregation is the default on every range but Today;
+using the toggle pins your choice (remembered in `localStorage`).
+
+On the 7- and 30-day ranges the subtitle also carries the average per bucket and the
+change against the preceding window. That delta is **only** shown when the log actually
+covers the preceding window — otherwise "up 300%" would just be the history starting.
 
 Three-hue categorical palette (blue / orange / aqua), validated for colorblind
 separation against both the light and dark chart surfaces. Lane 1 sits at the bottom so
