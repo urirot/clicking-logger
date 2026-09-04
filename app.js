@@ -5,15 +5,14 @@
 
   const STORE_KEY = 'click-timeline/v1';
   const THEME_KEY = 'click-timeline/theme';
-  const MODE_KEY  = 'click-timeline/chart-mode';
   const SERIES = { 1: 'var(--series-1)', 2: 'var(--series-2)', 3: 'var(--series-3)' };
+  const NAMES  = { 1: 'Blue', 2: 'Yellow', 3: 'Red' };   // 1 at the bottom of the rail
   const DAY = 86400000;
 
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
   let range = 'today';
-  let modePref = loadMode();    // 'auto' | 'clicks' | 'buckets' — chart detail
-  let active = null;            // hovered click id, or 'bk:<ms>' for a hovered bucket
+  let active = null;            // id of the hovered click
 
   function load() {
     try {
@@ -34,22 +33,10 @@
     }
   }
 
-  function loadMode() {
-    try {
-      const v = localStorage.getItem(MODE_KEY);
-      return v === 'clicks' || v === 'buckets' ? v : 'auto';
-    } catch { return 'auto'; }
-  }
-
   /* ── Formatting ────────────────────────────────────────── */
   const fTime = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
   const fSec  = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const fDay  = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
-  const fWkDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  const fMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
-  const fFull = new Intl.DateTimeFormat(undefined, {
-    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
   function startOfToday() {
@@ -71,75 +58,6 @@
   }
 
   const inRange = ([t0, t1]) => clicks.filter(c => c.t >= t0 && c.t <= t1);
-
-  /* ── Aggregation — counts per hour / day / week / month ───
-     The bucket follows the visible span, so "Per day" becomes "Per hour" on
-     Today and "Per week"/"Per month" once the domain outgrows a daily bar. */
-  const BUCKET_NOUN = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
-
-  function bucketOf([t0, t1]) {
-    const span = t1 - t0;
-    if (span <=   2 * DAY) return 'hour';
-    if (span <= 120 * DAY) return 'day';
-    if (span <= 1095 * DAY) return 'week';
-    return 'month';
-  }
-
-  // Aggregate on every range but Today, until the toggle is used explicitly
-  const aggregated = () => (modePref === 'auto' ? range !== 'today' : modePref === 'buckets');
-
-  function bucketStart(t, bucket) {
-    const d = new Date(t);
-    d.setMinutes(0, 0, 0);
-    if (bucket === 'hour') return d.getTime();
-    d.setHours(0, 0, 0, 0);
-    if (bucket === 'day') return d.getTime();
-    if (bucket === 'week') { d.setDate(d.getDate() - d.getDay()); return d.getTime(); }
-    d.setDate(1);
-    return d.getTime();
-  }
-
-  // Stepped with Date methods, not +N ms, so DST shifts don't drift the edges
-  function bucketNext(t, bucket) {
-    const d = new Date(t);
-    if (bucket === 'hour')      d.setHours(d.getHours() + 1);
-    else if (bucket === 'day')  d.setDate(d.getDate() + 1);
-    else if (bucket === 'week') d.setDate(d.getDate() + 7);
-    else                        d.setMonth(d.getMonth() + 1);
-    return d.getTime();
-  }
-
-  const MAX_BUCKETS = 2000;   // guard: a pathological domain can't hang the render
-
-  function buckets(data, [t0, t1], bucket) {
-    const out = [], byStart = new Map();
-    for (let t = bucketStart(t0, bucket); t <= t1 && out.length < MAX_BUCKETS; t = bucketNext(t, bucket)) {
-      const bk = { t, end: bucketNext(t, bucket), k: bucket, n: [0, 0, 0, 0], total: 0 };
-      byStart.set(t, bk);
-      out.push(bk);
-    }
-    for (const c of data) {
-      const bk = byStart.get(bucketStart(c.t, bucket));
-      if (bk) { bk.n[c.b]++; bk.total++; }
-    }
-    return out;
-  }
-
-  function bucketCount([t0, t1], bucket) {
-    let n = 0;
-    for (let t = bucketStart(t0, bucket); t <= t1 && n < MAX_BUCKETS; t = bucketNext(t, bucket)) n++;
-    return n;
-  }
-
-  const bucketId = bk => `bk:${bk.t}`;
-
-  function bucketLabel(bk) {
-    const d = new Date(bk.t);
-    if (bk.k === 'hour')  return `${fDay.format(d)} · ${fTime.format(d)}`;
-    if (bk.k === 'day')   return fWkDay.format(d);
-    if (bk.k === 'week')  return `Week of ${fDay.format(d)}`;
-    return fMonth.format(d);
-  }
 
   /* Period-over-period change. Only stated when the previous window is fully
      covered by recorded history — otherwise "up 300%" is just the log starting. */
@@ -195,158 +113,214 @@
     return n;
   };
 
-  /* ── Chart ─────────────────────────────────────────────── */
-  let hits  = [];   // { x, y, c }  dot mode: one entry per click
-  let bhits = [];   // { x, bk }    bucket mode: one entry per time bucket
+  /* ── Chart ─────────────────────────────────────────────────
+     One picture, two readings. Three cumulative curves carry the shape of the
+     day — the running total per button across the visible span — and the rail
+     along the foot keeps every single click visible as its own tick, one row
+     per button with 1 at the bottom. */
+  let hits = [];          // { x, y, ry, c, cum } — one entry per click
+
+  const RAIL_H   = 42;    // event rail at the foot of the plot
+  const RAIL_GAP = 14;    // breathing room between the curves and the rail
+  const MAX_DOTS = 300;   // past this the per-event dots merge into noise
+
+  /* A running total holds flat and then jumps, so the line is a staircase —
+     corners rounded, and only as much as the step itself allows, so a burst of
+     clicks stays crisp instead of smoothing into a slope that never happened. */
+  const STEP_R = 7;
+
+  function stepPath(pts) {
+    if (!pts.length) return '';
+    let d = `M${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const { x: x0, y: y0 } = pts[i - 1];
+      const { x: x1, y: y1 } = pts[i];
+      const rise = y0 - y1;                 // a total only ever climbs: y falls
+      if (rise <= 0) { d += `L${x1} ${y1}`; continue; }
+      const next = i + 1 < pts.length ? pts[i + 1].x - x1 : 0;
+      const rIn  = Math.min(STEP_R, (x1 - x0) / 2, rise / 2);
+      const rOut = Math.min(STEP_R, next / 2, rise / 2);
+      d += `L${x1 - rIn} ${y0}Q${x1} ${y0} ${x1} ${y0 - rIn}`
+         + `L${x1} ${y1 + rOut}Q${x1} ${y1} ${x1 + rOut} ${y1}`;
+    }
+    return d;
+  }
+
+  // Count axis: whole numbers only — half a click is not a thing
+  function countStep(peak, target) {
+    const raw = peak / target;
+    const pow = 10 ** Math.floor(Math.log10(Math.max(raw, 1)));
+    for (const f of [1, 2, 2.5, 5, 10]) {
+      if (pow * f >= raw) return Math.max(1, Math.round(pow * f));
+    }
+    return Math.max(1, Math.round(pow * 10));
+  }
+
+  /* One shared vertical fade per series, in user space, so all three areas
+     wash out at the same rate instead of each over its own bounding box. */
+  function chartDefs(top, bottom) {
+    const defs = el('defs');
+    for (const b of [1, 2, 3]) {
+      const g = el('linearGradient', {
+        id: `fade-${b}`, gradientUnits: 'userSpaceOnUse', x1: 0, y1: top, x2: 0, y2: bottom,
+      });
+      g.append(
+        el('stop', { offset: '0%',   'stop-color': `var(--series-${b})`, 'stop-opacity': 0.16 }),
+        el('stop', { offset: '100%', 'stop-color': `var(--series-${b})`, 'stop-opacity': 0 }),
+      );
+      defs.append(g);
+    }
+    return defs;
+  }
 
   function drawChart(data, [t0, t1]) {
     svg.textContent = '';
     hits = [];
-    bhits = [];
     const empty = !data.length;
     $('chart-empty').hidden = !empty;
     svg.style.visibility = empty ? 'hidden' : 'visible';
     if (empty) { tooltip.hidden = true; return; }
 
     const w = svg.clientWidth || svg.getBoundingClientRect().width;
-    const h = svg.clientHeight || 210;
+    const h = svg.clientHeight || 272;
     if (!w) return;   // panel is hidden; activateTab() redraws when it is shown
     svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-    const m = { top: 12, right: 12, bottom: 26, left: 26 };
+    const m = { top: 16, right: 14, bottom: 24, left: 48 };
     const iw = Math.max(w - m.left - m.right, 10);
     const ih = Math.max(h - m.top - m.bottom, 10);
     const x = t => m.left + ((t - t0) / (t1 - t0 || 1)) * iw;
-    const geo = { m, iw, ih, x, laneH: ih / 3 };
 
-    // Gridlines + x labels
+    const railBottom = m.top + ih;
+    const railTop = railBottom - Math.min(RAIL_H, Math.max(ih * 0.35, 18));
+    const rowH = (railBottom - railTop) / 3;
+    const railY = b => railTop + rowH * (3 - b) + rowH / 2;   // 1 at the bottom
+    const plotTop = m.top + 6;   // headroom, so the peak node clears the top rule
+    const plotBottom = Math.max(railTop - RAIL_GAP, plotTop + 24);
+
+    // Running totals, plus a snapshot of all three at every click for the tooltip
+    const run = { 1: 0, 2: 0, 3: 0 };
+    const series = { 1: [], 2: [], 3: [] };
+    const snaps = [];
+    for (const c of data) {
+      run[c.b]++;
+      series[c.b].push({ t: c.t, n: run[c.b] });
+      snaps.push({ 1: run[1], 2: run[2], 3: run[3] });
+    }
+    const peak = Math.max(1, run[1], run[2], run[3]);
+    const step = countStep(peak, 3);
+    const yTop = Math.ceil(peak / step) * step;
+    const y = n => plotBottom - (n / yTop) * (plotBottom - plotTop);
+
+    svg.append(chartDefs(plotTop, plotBottom));
+
+    // The rail reads as its own strip, not as more plot
+    svg.append(el('rect', {
+      class: 'rail-bg', x: m.left, y: railTop - 3,
+      width: iw, height: railBottom - railTop + 6, rx: 9,
+    }));
+
+    // Count grid
+    for (let v = 0; v <= yTop; v += step) {
+      const py = y(v);
+      svg.append(el('line', {
+        class: v === 0 ? 'baseline' : 'gridline', x1: m.left, x2: m.left + iw, y1: py, y2: py,
+      }));
+      const lab = el('text', { class: 'y-label', x: m.left - 8, y: py + 3.5, 'text-anchor': 'end' });
+      lab.textContent = String(v);
+      svg.append(lab);
+    }
+
+    // Time grid
     const tickTarget = w < 380 ? 4 : w < 560 ? 5 : 7;
     for (const tk of ticks(t0, t1, tickTarget)) {
-      const px = x(tk.t);
-      svg.append(el('line', { class: 'gridline', x1: px, x2: px, y1: m.top, y2: m.top + ih }));
+      const tx = x(tk.t);
+      svg.append(el('line', { class: 'gridline', x1: tx, x2: tx, y1: plotTop, y2: railBottom }));
       // Anchor the outermost labels inward instead of letting them hang off the edge
-      const edge = px > w - 30 ? ['end', w - 4] : px < 30 ? ['start', 4] : ['middle', px];
-      const label = el('text', { x: edge[1], y: h - 8, 'text-anchor': edge[0] });
-      label.textContent = tickLabel(tk);
-      svg.append(label);
+      const edge = tx > w - 30 ? ['end', w - 4] : tx < 30 ? ['start', 4] : ['middle', tx];
+      const lab = el('text', { x: edge[1], y: h - 7, 'text-anchor': edge[0] });
+      lab.textContent = tickLabel(tk);
+      svg.append(lab);
     }
 
-    if (aggregated()) drawBars(data, [t0, t1], geo);
-    else              drawDots(data, geo);
-  }
+    // Crosshair sits under the washes, so the curves still read across it
+    const cross = data.find(c => c.id === active);
+    if (cross) {
+      const cx = x(cross.t);
+      svg.append(el('line', { class: 'crosshair', x1: cx, x2: cx, y1: plotTop, y2: railBottom }));
+    }
 
-  function laneLabel(b, yPx, m) {
-    const lab = el('text', { class: 'lane-label', x: m.left - 9, y: yPx, 'text-anchor': 'end' });
-    lab.textContent = String(b);
-    svg.append(lab);
-  }
+    // Curve points, padded to both edges of the domain so no line floats
+    const curve = b => {
+      const out = [];
+      for (const p of [{ t: t0, n: 0 }, ...series[b], { t: t1, n: run[b] }]) {
+        const cx = x(p.t), cy = y(p.n);
+        const last = out[out.length - 1];
+        // Two clicks in the same pixel column: keep the later (higher) total
+        if (last && Math.abs(last.x - cx) < 0.5) { last.x = cx; last.y = cy; continue; }
+        out.push({ x: cx, y: cy });
+      }
+      return out;
+    };
 
-  /* ── One dot per click ─────────────────────────────────── */
-  function drawDots(data, { m, iw, ih, laneH, x }) {
-    const y = b => m.top + laneH * (3 - b + 0.5);   // 1 at the bottom, 3 at the top
-
-    // Lane rules + labels (the direct-label relief for low-contrast series)
     for (const b of [1, 2, 3]) {
+      if (!run[b]) continue;   // a flat line on the baseline says nothing
+      const pts = curve(b);
+      const d = stepPath(pts);
+      const y0 = y(0);
+      svg.append(el('path', {
+        class: 'area', fill: `url(#fade-${b})`,
+        d: `${d}L${pts[pts.length - 1].x} ${y0}L${pts[0].x} ${y0}Z`,
+      }));
+      svg.append(el('path', { class: 'bloom', d, stroke: SERIES[b] }));
+      svg.append(el('path', { class: 'line', d, stroke: SERIES[b], 'data-series': b }));
+    }
+
+    // Every click: a node on its curve and a tick on the rail
+    const showDots = data.length <= MAX_DOTS;
+    data.forEach((c, i) => {
+      const cx = x(c.t), cy = y(snaps[i][c.b]);
+      hits.push({ x: cx, y: cy, ry: railY(c.b), c, cum: snaps[i] });
+      if (showDots) {
+        svg.append(el('circle', { class: 'dot', cx, cy, r: 3, fill: SERIES[c.b], 'data-id': c.id }));
+      }
+    });
+
+    for (const b of [1, 2, 3]) {
+      const ry = railY(b);
       svg.append(el('line', {
-        class: 'lane-rule', x1: m.left, x2: m.left + iw, y1: y(b), y2: y(b), opacity: 0.55,
+        class: 'rail-rule', x1: m.left + 7, x2: m.left + iw - 7, y1: ry, y2: ry,
       }));
-      laneLabel(b, y(b) + 4, m);
+      const lab = el('text', { class: 'lane-label', x: m.left - 8, y: ry + 4, 'text-anchor': 'end' });
+      lab.textContent = NAMES[b];
+      svg.append(lab);
     }
 
-    for (const c of data) {
-      const cx = x(c.t), cy = y(c.b);
-      hits.push({ x: cx, y: cy, c });
-      svg.append(el('circle', {
-        class: 'dot' + (active === c.id ? ' is-active' : ''),
-        cx, cy, r: 5, fill: SERIES[c.b], 'data-id': c.id,
+    const tickH = Math.max(rowH - 6, 4);
+    for (const p of hits) {
+      const on = p.c.id === active;
+      const tw = on ? 5 : 3;
+      svg.append(el('rect', {
+        class: 'rail-tick' + (on ? ' is-active' : ''), fill: SERIES[p.c.b],
+        x: p.x - tw / 2, y: p.ry - tickH / 2, width: tw, height: tickH, rx: tw / 2,
       }));
     }
 
-    // Crosshair for the active point
-    const hit = hits.find(p => p.c.id === active);
-    if (hit) {
-      svg.insertBefore(el('line', {
-        class: 'crosshair', x1: hit.x, x2: hit.x, y1: m.top, y2: m.top + ih,
-      }), svg.firstChild);
-      dotTooltip(hit);
+    // The hovered click, lifted out of the crowd
+    const act = hits.find(p => p.c.id === active);
+    if (act) {
+      svg.append(el('circle', { class: 'halo', cx: act.x, cy: act.y, r: 10, fill: SERIES[act.c.b] }));
+      svg.append(el('circle', { class: 'dot is-active', cx: act.x, cy: act.y, r: 5, fill: SERIES[act.c.b] }));
+      showTooltip(act);
     } else {
       tooltip.hidden = true;
     }
   }
 
-  /* ── Counts per bucket: three rows of bars, one row per button ──
-     Every row shares one scale, so row heights are comparable — that is the
-     whole point of the view. Square at the baseline, 4px rounded at the data
-     end, 2px of surface between neighbours. */
-  const LABEL_ROOM = 16;   // headroom kept above the tallest bar, clear of the lane rule above
-
-  function barPath(x0, yTop, w, hh, r) {
-    const rr = Math.max(0, Math.min(r, w / 2, hh));
-    return `M${x0} ${yTop + hh}`
-         + `L${x0} ${yTop + rr}Q${x0} ${yTop} ${x0 + rr} ${yTop}`
-         + `L${x0 + w - rr} ${yTop}Q${x0 + w} ${yTop} ${x0 + w} ${yTop + rr}`
-         + `L${x0 + w} ${yTop + hh}Z`;
-  }
-
-  function drawBars(data, [t0, t1], { m, iw, ih, laneH, x }) {
-    const bks = buckets(data, [t0, t1], bucketOf([t0, t1]));
-    const peak = Math.max(1, ...bks.map(bk => Math.max(bk.n[1], bk.n[2], bk.n[3])));
-    const barMax = Math.max(laneH - LABEL_ROOM, 6);
-    const base = b => m.top + laneH * (3 - b + 1);   // lane baseline; 1 at the bottom
-
-    // Bucket edges clamped to the plot, so a part-covered first/last bucket
-    // stays inside the axes instead of bleeding into the label gutter
-    const span = bk => {
-      const sx = Math.max(x(bk.t), m.left);
-      const ex = Math.min(x(bk.end), m.left + iw);
-      return { sx, ex, slot: ex - sx };
-    };
-
-    const act = bks.find(bk => bucketId(bk) === active);
-    if (act) {
-      const { sx, slot } = span(act);
-      svg.append(el('rect', { class: 'band', x: sx, y: m.top, width: Math.max(slot, 2), height: ih }));
-    }
-
-    for (const b of [1, 2, 3]) {
-      const y0 = base(b);
-      svg.append(el('line', { class: 'lane-rule', x1: m.left, x2: m.left + iw, y1: y0, y2: y0 }));
-      laneLabel(b, y0 - 3, m);
-
-      let top = null;   // this row's own peak — the one bar that gets a value label
-      for (const bk of bks) {
-        if (!bk.n[b]) continue;
-        const { sx, slot } = span(bk);
-        if (slot <= 0) continue;
-        const bw = Math.max(1.5, Math.min(24, slot - 2));
-        const bx = sx + (slot - bw) / 2;
-        const bh = Math.max((bk.n[b] / peak) * barMax, 2);
-        svg.append(el('path', { class: 'bar', d: barPath(bx, y0 - bh, bw, bh, 4), fill: SERIES[b] }));
-        if (!top || bk.n[b] > top.n) top = { n: bk.n[b], x: bx + bw / 2, y: y0 - bh };
-      }
-      if (top && top.n > 1) {
-        const lab = el('text', {
-          class: 'bar-val', 'text-anchor': 'middle', y: top.y - 3,
-          x: Math.min(Math.max(top.x, m.left + 8), m.left + iw - 8),
-        });
-        lab.textContent = String(top.n);
-        svg.append(lab);
-      }
-    }
-
-    for (const bk of bks) {
-      const { sx, ex, slot } = span(bk);
-      if (slot > 0) bhits.push({ x: (sx + ex) / 2, bk });
-    }
-
-    if (act) bucketTooltip(act, span(act), m);
-    else tooltip.hidden = true;
-  }
-
-  /* ── Tooltips ──────────────────────────────────────────── */
-  function ttRow(b, text) {
+  /* ── Tooltip ───────────────────────────────────────────── */
+  function ttRow(b, text, strong) {
     const row = document.createElement('span');
-    row.className = 'tt-row';
+    row.className = 'tt-row' + (strong ? ' is-strong' : '');
     const key = document.createElement('i');
     key.className = 'tt-key';
     key.style.background = SERIES[b];
@@ -354,27 +328,21 @@
     return row;
   }
 
-  function dotTooltip(hit) {
+  function showTooltip(hit) {
     tooltip.textContent = '';
     const val = document.createElement('span');
     val.className = 'tt-val';
-    val.textContent = fSec.format(new Date(hit.c.t));
-    tooltip.append(val, ttRow(hit.c.b, `Button ${hit.c.b} · ${fDay.format(new Date(hit.c.t))}`));
-    placeTooltip(hit.x, hit.y);
-  }
-
-  function bucketTooltip(bk, { sx, ex }, m) {
-    tooltip.textContent = '';
-    const val = document.createElement('span');
-    val.className = 'tt-val';
-    val.textContent = `${bucketLabel(bk)} · ${plural(bk.total, 'click')}`;
-    tooltip.append(val);
+    val.textContent = `${fSec.format(new Date(hit.c.t))} · ${NAMES[hit.c.b].toLowerCase()}`;
+    const sub = document.createElement('span');
+    sub.className = 'tt-sub';
+    sub.textContent = `${fDay.format(new Date(hit.c.t))} · running total`;
+    tooltip.append(val, sub);
     for (const b of [3, 2, 1]) {           // top row first, so it reads like the chart
-      const row = ttRow(b, `Button ${b} · ${bk.n[b]}`);
-      if (!bk.n[b]) row.classList.add('is-zero');
+      const row = ttRow(b, `${NAMES[b]} · ${hit.cum[b]}`, b === hit.c.b);
+      if (!hit.cum[b]) row.classList.add('is-zero');
       tooltip.append(row);
     }
-    placeTooltip((sx + ex) / 2, m.top);
+    placeTooltip(hit.x, hit.y);
   }
 
   function placeTooltip(px, py) {
@@ -391,19 +359,14 @@
   /* ── Hover / tap ───────────────────────────────────────── */
   function nearest(px, py) {
     let best = null, bestD = Infinity;
-    if (aggregated()) {
-      // The whole bucket column is the hit target — no vertical aim needed
-      for (const p of bhits) {
-        const d = Math.abs(p.x - px);
-        if (d < bestD) { bestD = d; best = bucketId(p.bk); }
-      }
-      return best;
-    }
     for (const p of hits) {
-      const d = (p.x - px) ** 2 + ((p.y - py) * 0.6) ** 2;   // favour horizontal aim
+      const dx = p.x - px;
+      // whichever anchor is closer — the node on the curve or the rail tick
+      const dy = Math.min(Math.abs(p.y - py), Math.abs(p.ry - py));
+      const d = dx * dx + (dy * 0.45) ** 2;   // favour horizontal aim
       if (d < bestD) { bestD = d; best = p.c.id; }
     }
-    return bestD <= 44 ** 2 ? best : null;
+    return bestD <= 56 ** 2 ? best : null;
   }
 
   function onPoint(ev) {
@@ -420,42 +383,6 @@
     if (active && !svg.contains(ev.target)) { active = null; render(); }
   });
 
-  /* ── Table ─────────────────────────────────────────────── */
-  function drawTable(data) {
-    const body = $('log-body');
-    body.textContent = '';
-    $('table-empty').hidden = data.length > 0;
-    const rows = data.slice().reverse();
-    rows.forEach((c, i) => {
-      const tr = document.createElement('tr');
-
-      const n = document.createElement('td');
-      n.textContent = String(rows.length - i);
-
-      const btn = document.createElement('td');
-      btn.className = 'c-btn';
-      const key = document.createElement('i');
-      key.className = `key key-${c.b}`;
-      btn.append(key, document.createTextNode(String(c.b)));
-
-      const time = document.createElement('td');
-      time.textContent = fFull.format(new Date(c.t));
-
-      const act = document.createElement('td');
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'row-del';
-      del.textContent = '×';
-      del.title = 'Delete this click';
-      del.setAttribute('aria-label', `Delete click on button ${c.b} at ${fFull.format(new Date(c.t))}`);
-      del.addEventListener('click', () => remove(c.id));
-      act.append(del);
-
-      tr.append(n, btn, time, act);
-      body.append(tr);
-    });
-  }
-
   /* ── Render ────────────────────────────────────────────── */
   function render() {
     const d = domain();
@@ -467,48 +394,23 @@
       const n = clicks.filter(c => c.b === b && c.t >= today).length;
       $(`count-${b}`).textContent = String(n);
       document.querySelector(`.tap[data-btn="${b}"]`)
-        .setAttribute('aria-label', `Record a click on button ${b} — ${plural(n, 'click')} today`);
+        .setAttribute('aria-label', `Record a click on the ${NAMES[b].toLowerCase()} button — ${plural(n, 'click')} today`);
       $(`legend-${b}`).textContent = String(data.filter(c => c.b === b).length);
     }
 
     const todayTotal = clicks.filter(c => c.t >= today).length;
     const last = clicks[clicks.length - 1];
     $('last-line').textContent = last
-      ? `Today: ${plural(todayTotal, 'click')} · last was button ${last.b} at ${fSec.format(new Date(last.t))}`
+      ? `Today: ${plural(todayTotal, 'click')} · last was ${NAMES[last.b].toLowerCase()} at ${fSec.format(new Date(last.t))}`
       : 'No clicks yet — tap a button.';
 
     const label = range === 'today' ? 'today' : range === 'all' ? 'all time' : `last ${range} days`;
-    const agg = aggregated();
-    const bucket = bucketOf(d);
-    const noun = BUCKET_NOUN[bucket];
-
     const sub = [plural(data.length, 'click'), label];
-    if (agg) {
-      const avg = data.length / (bucketCount(d, bucket) || 1);
-      sub.push(`avg ${avg >= 10 ? Math.round(avg) : avg.toFixed(1)}/${noun}`);
-      const trend = trendNote(d);
-      if (trend) sub.push(trend);
-    }
+    const trend = trendNote(d);
+    if (trend) sub.push(trend);
     $('chart-sub').textContent = sub.join(' · ');
-    $('table-sub').textContent = `${plural(data.length, 'click')} · newest first`;
-
-    // Detail toggle: its label names the bucket the current span resolves to
-    $('mode-buckets').textContent = `Per ${noun}`;
-    for (const btn of document.querySelectorAll('.seg-btn')) {
-      const on = (btn.dataset.mode === 'buckets') === agg;
-      btn.classList.toggle('is-selected', on);
-      btn.setAttribute('aria-pressed', String(on));
-    }
-
-    $('chart-title-a11y').textContent = agg
-      ? `Clicks per ${noun}. Three rows, one per button (1 at the bottom, 3 at the top); `
-        + `each bar is how many clicks that button got in that ${noun}, on a scale shared by `
-        + `all three rows. The log table below lists every click.`
-      : 'Timeline of clicks. Each row is a button (1 at the bottom, 3 at the top); each dot is '
-        + 'one click at the time shown on the horizontal axis. The log table below lists the same data.';
 
     drawChart(data, d);
-    drawTable(data);
   }
 
   /* ── Mutations ─────────────────────────────────────────── */
@@ -520,16 +422,6 @@
     save();
     render();
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
-  }
-
-  function remove(id) {
-    const i = clicks.findIndex(c => c.id === id);
-    if (i < 0) return;
-    clicks.splice(i, 1);
-    active = null;
-    save();
-    render();
-    toast('Deleted');
   }
 
   /* ── Toast ─────────────────────────────────────────────── */
@@ -561,35 +453,8 @@
       });
       range = chip.dataset.range;
       active = null;
-      active = null;
       render();
     });
-  });
-
-  document.querySelectorAll('.seg-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      modePref = btn.dataset.mode;
-      try { localStorage.setItem(MODE_KEY, modePref); } catch {}
-      active = null;
-      render();
-    });
-  });
-
-  $('undo').addEventListener('click', () => {
-    if (!clicks.length) return toast('Nothing to undo');
-    const c = clicks.pop();
-    save();
-    render();
-    toast(`Removed button ${c.b} at ${fSec.format(new Date(c.t))}`);
-  });
-
-  $('clear').addEventListener('click', () => {
-    if (!clicks.length) return toast('Already empty');
-    if (!confirm(`Delete all ${clicks.length} clicks? This cannot be undone.`)) return;
-    clicks = [];
-    save();
-    render();
-    toast('Cleared');
   });
 
   $('export').addEventListener('click', () => {
@@ -603,35 +468,6 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  });
-
-  $('import').addEventListener('click', () => $('import-file').click());
-  $('import-file').addEventListener('change', ev => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      let incoming;
-      try { incoming = JSON.parse(String(reader.result)); } catch { return toast('Not valid JSON'); }
-      if (!Array.isArray(incoming)) return toast('Expected a JSON array');
-      const seen = new Set(clicks.map(c => `${c.t}|${c.b}`));
-      let added = 0;
-      for (const c of incoming) {
-        const t = Number(c && c.t), b = Number(c && c.b);
-        if (!Number.isFinite(t) || ![1, 2, 3].includes(b)) continue;
-        const k = `${t}|${b}`;
-        if (seen.has(k)) continue;
-        seen.add(k);
-        clicks.push({ id: `${t}-${b}-i${seq++}`, t, b });
-        added++;
-      }
-      clicks.sort((a, z) => a.t - z.t);
-      save();
-      render();
-      toast(added ? `Imported ${plural(added, 'click')}` : 'Nothing new to import');
-    };
-    reader.readAsText(file);
-    ev.target.value = '';
   });
 
   /* ── Tabs ──────────────────────────────────────────────── */

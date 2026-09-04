@@ -31,24 +31,21 @@
   <section id="panel-tap" role="tabpanel" aria-labelledby="tab-tap" tabindex="-1">
     <div class="pad" aria-label="Record a click">
       <button class="tap tap-1" type="button" data-btn="1">
-        <span class="tap-num">1</span>
         <span class="tap-count" id="count-1">0</span>
       </button>
       <button class="tap tap-2" type="button" data-btn="2">
-        <span class="tap-num">2</span>
         <span class="tap-count" id="count-2">0</span>
       </button>
       <button class="tap tap-3" type="button" data-btn="3">
-        <span class="tap-num">3</span>
         <span class="tap-count" id="count-3">0</span>
       </button>
     </div>
 
     <p class="last-line" id="last-line" role="status" aria-live="polite">No clicks yet — tap a button.</p>
-    <p class="pad-caption">Badges count today. Tap <b>Timeline</b> below for the chart, per-day trends and the full log.</p>
+    <p class="pad-caption">Each button is one colour; the badge counts today. Tap <b>Timeline</b> below to see every click plotted over time.</p>
   </section>
 
-  <!-- ══ Screen 2 — timeline, log, data ══════════════════════ -->
+  <!-- ══ Screen 2 — the timeline ═══════════════════════ -->
   <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="-1" hidden>
 
     <div class="filters" role="group" aria-label="Time range">
@@ -64,49 +61,22 @@
         <p class="card-sub" id="chart-sub">&nbsp;</p>
       </div>
 
-      <div class="seg" role="group" aria-label="Chart detail">
-        <button class="seg-btn" type="button" id="mode-clicks" data-mode="clicks" aria-pressed="false">Each click</button>
-        <button class="seg-btn" type="button" id="mode-buckets" data-mode="buckets" aria-pressed="false">Per day</button>
-      </div>
-
       <div class="legend">
-        <span class="legend-item"><i class="key key-3" aria-hidden="true"></i>Button 3 · <b id="legend-3">0</b></span>
-        <span class="legend-item"><i class="key key-2" aria-hidden="true"></i>Button 2 · <b id="legend-2">0</b></span>
-        <span class="legend-item"><i class="key key-1" aria-hidden="true"></i>Button 1 · <b id="legend-1">0</b></span>
+        <span class="legend-item"><i class="key key-3" aria-hidden="true"></i>Red · <b id="legend-3">0</b></span>
+        <span class="legend-item"><i class="key key-2" aria-hidden="true"></i>Yellow · <b id="legend-2">0</b></span>
+        <span class="legend-item"><i class="key key-1" aria-hidden="true"></i>Blue · <b id="legend-1">0</b></span>
       </div>
 
       <div class="chart-wrap">
-        <p class="sr-only" id="chart-title-a11y">Timeline of clicks. Each row is a button (1 at the bottom, 3 at the top); each dot is one click at the time shown on the horizontal axis. The log table below lists the same data.</p>
-        <!-- rewritten by render() — the two views need different descriptions -->
+        <p class="sr-only" id="chart-title-a11y">Timeline of clicks. Three curves show the running total for the blue, yellow and red buttons across the selected range, with a node on the curve at every click. The strip along the bottom marks each individual click as a tick, one row per colour, with blue at the bottom, then yellow, then red.</p>
         <svg id="chart" role="img" aria-labelledby="chart-title-a11y"></svg>
         <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
         <p class="empty" id="chart-empty" hidden>Nothing in this range.</p>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>Log</h2>
-        <p class="card-sub" id="table-sub">&nbsp;</p>
-      </div>
-      <div class="table-wrap">
-        <table id="log">
-          <caption class="sr-only">Every recorded click in the selected range, newest first</caption>
-          <thead>
-            <tr><th scope="col">#</th><th scope="col">Button</th><th scope="col">Time</th><th scope="col"><span class="sr-only">Delete</span></th></tr>
-          </thead>
-          <tbody id="log-body"></tbody>
-        </table>
-        <p class="empty" id="table-empty" hidden>Nothing in this range.</p>
-      </div>
-    </section>
-
     <section class="actions" aria-label="Data">
-      <button class="btn" type="button" id="undo">Undo last</button>
       <button class="btn" type="button" id="export">Export JSON</button>
-      <button class="btn" type="button" id="import">Import JSON</button>
-      <button class="btn btn-danger" type="button" id="clear">Clear all</button>
-      <input type="file" id="import-file" accept="application/json,.json" hidden>
     </section>
 
     <p class="footnote">
