@@ -1,8 +1,8 @@
 # Click Timeline
 
 A one-page app: tap **blue**, **yellow** or **red** to stamp the current time, then read the whole
-log off one picture — three cumulative curves for the running total per button, over a
-rail that keeps every individual tap visible as its own tick.
+log off one picture — three rate curves showing how fast each colour is being tapped at
+each moment, over a rail that keeps every individual tap visible as its own tick.
 
 Built as an offline-capable PWA so it installs to an Android/iOS home screen and works
 with no signal.
@@ -77,7 +77,7 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Tap a colour | records a click at the current time |
 | Keys `1` `2` `3` | same, on a desktop keyboard — `1` blue, `2` yellow, `3` red |
 | Today / 7 / 30 / All | scopes the chart |
-| Hover or tap the chart | nearest tap: its exact timestamp, and all three running totals at that moment |
+| Hover or tap the chart | nearest tap: its exact timestamp, and all three colours' rates at that moment |
 | ◐ | cycles theme: auto → light → dark |
 | Export JSON | back the log up, or move it to another device |
 
@@ -123,29 +123,40 @@ npm run icons
 
 ## Chart notes
 
-**One view, two readings.** The curves are *cumulative* — each one is the running total
-for its button across the visible range, on a **count scale shared by all three**, so
-the curves are directly comparable and the gap between them is the gap in usage. A
-running total holds flat and then jumps, so the line is drawn as a staircase with
-rounded corners rather than smoothed: a burst of five taps in a minute reads as a cliff,
-not as a gentle slope that never happened. Every tap is a node on its curve.
+**The curve is a rate, not a total.** Each line is how many taps per hour / day / week /
+month that colour is getting *at that moment*, so it rises and falls and the three cross
+one another. This is deliberate: a cumulative running total can only ever climb, which
+shows accumulation and hides change — exactly the wrong read for "am I doing this more
+or less than I was?". The axis names its unit, and the unit follows the visible span:
+per hour out to 2 days, per day to 120, then per week and per month.
 
-Under the curves, the **event rail** keeps the raw data visible: one row per button
-(1 at the bottom, so 1 → 3 reads upward), one tick per tap at its exact time. It is what
-the old dot-lane chart showed, compressed into a strip, so the shape of the day and the
-individual moments are legible at once without a toggle.
+**How the rate is computed.** A sliding triangular window, half-width `max(span/12,
+unit)/2`, sampled every 2px across the plot. The weights are normalised by the
+half-width, so a steady stream of *r* taps per unit reads as exactly *r* — the number on
+the axis is a real rate, not an arbitrary activity score. The window is fed from the
+**whole log**, not just the visible slice, so it is properly full at both edges instead
+of dipping to zero wherever the range happens to be cut.
 
-Hovering or tapping picks the nearest tap by time — from either its node or its rail
-tick, whichever your finger is closer to — and the tooltip gives its timestamp plus all
-three running totals at that instant, with the tapped button's row emphasised.
+**Nothing is filled or stacked.** No wash under the curves: with three lines that cross,
+a fill reads as stacked area and invites adding the values together, which would be
+meaningless here. Each curve is one line plus a wide, faint copy behind it for bloom.
 
-On the 7- and 30-day ranges the subtitle carries the change against the preceding
+Under the curves, the **event rail** keeps the raw data visible: one row per colour
+(blue at the bottom, so 1 → 3 reads upward), one tick per tap at its exact time. The
+curve answers "how much, and is it changing"; the rail answers "when, exactly".
+
+Hovering or tapping picks the nearest tap by time — aim is x-dominant, with the rail row
+only breaking ties, so a finger on the red row picks a red tap. It drops a node on **all
+three** curves at that instant, so the tooltip's three numbers are visibly the three
+lines, and the subtitle carries the peak rate for the range.
+
+On the 7- and 30-day ranges the subtitle also carries the change against the preceding
 window. That delta is **only** shown when the log actually covers the preceding
 window — otherwise "up 300%" would just be the history starting.
 
 **Palette: blue, yellow, red**, in that order — button 1 is blue and sits at the bottom
-of the rail, so 1 → 3 still reads upward. Storage is unchanged: clicks are still saved as
-`b: 1 | 2 | 3`, and the colour is only how that number is presented.
+of the rail. Storage is unchanged: clicks are still saved as `b: 1 | 2 | 3`, and the
+colour is only how that number is presented.
 
 Two honest caveats about this palette. A true lemon yellow is invisible as a 2px line on
 a near-white surface, so the light theme uses a deep gold (`#d4a000`, ~3:1 against the

@@ -172,16 +172,17 @@ main { max-width: 720px; margin: 0 auto; }
 #chart .gridline { stroke: var(--grid); stroke-width: 1; }
 #chart .baseline { stroke: var(--axis); stroke-width: 1; }
 
-/* Cumulative curves: a wash under the line, a wide soft copy behind it for
-   bloom, then the line itself. Three passes, no SVG filters — filters are
-   slow to composite on phones and this redraws on every pointermove. */
-#chart .area  { stroke: none; }
+/* Rate curves: a wide soft copy behind the line for bloom, then the line.
+   Deliberately unfilled — a wash under crossing curves reads as stacking.
+   No SVG filters: they are slow to composite on phones and this redraws on
+   every pointermove. */
 #chart .bloom { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; opacity: .13; }
 #chart .line  { fill: none; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 
-#chart .dot { stroke: var(--surface); stroke-width: 1.5; }
-#chart .dot.is-active { stroke: var(--ink); stroke-width: 2; }
-#chart .halo { opacity: .2; }
+/* Readout nodes: where the three curves sit at the crosshair */
+#chart .read-dot { stroke: var(--surface); stroke-width: 1.5; }
+#chart .read-dot.is-active { stroke: var(--ink); stroke-width: 2; }
+#chart .y-unit { font-size: 9px; fill: var(--ink-muted); letter-spacing: .02em; }
 
 /* Event rail — every individual click, one row per button */
 #chart .rail-bg { fill: var(--wash); }
