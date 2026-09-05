@@ -130,16 +130,18 @@ main {
   .drawer > summary::before { transition: none; }
 }
 .tap-1 { background: var(--series-1); }
+.tap-2 { background: var(--series-2); }
 .tap-3 { background: var(--series-3); }
-/* White on yellow fails; the yellow button flips to dark ink on a light pill */
-.tap-2 { background: var(--series-2); color: #241a00; }
-.tap-2 .tap-count { background: rgba(255,255,255,0.38); }
+
+/* The count sits beside its dot, in the empty space the circles leave. It no
+   longer needs a pill: off the colour it is plain text on the page, which
+   also retires the white-on-yellow contrast problem the pill was solving. */
 .tap-count {
-  position: absolute; top: 17%; right: 17%;
-  font-size: .8125rem; font-weight: 650; font-variant-numeric: tabular-nums;
-  min-width: 2.4em; text-align: center;
-  padding: 3px 9px; border-radius: 999px;
-  background: rgba(0,0,0,0.22);
+  position: absolute; top: 50%; left: calc(100% + 18px);
+  transform: translateY(-50%);
+  font-size: clamp(1.25rem, 5.5vw, 1.75rem); font-weight: 650;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  color: var(--ink-2);
 }
 
 .last-line {
