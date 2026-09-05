@@ -20,8 +20,7 @@ What that means in practice:
 * **Data is tied to one origin on one device.** Clicks recorded on
   `https://main.abc123.amplifyapp.com` are not visible from a different URL or a
   different phone. Moving hosts or adding a custom domain starts a fresh log — use
-  **Export JSON** on the old URL, then paste the file into the new one's
-  `click-timeline/v1` key (the in-app importer was removed along with the log table).
+  **Export JSON** on the old URL and **Import JSON** on the new one.
 * **The installed home-screen app and the same site in a Chrome tab share the log** —
   same origin, same profile, same storage.
 * **It survives app restarts, reboots and going offline.** On first run the app calls
@@ -29,6 +28,23 @@ What that means in practice:
   device is low on space (granted silently for installed PWAs).
 * **It does not survive "clear site data", uninstalling with storage cleared, or a
   factory reset.** Export a JSON backup if the history matters.
+
+### Import merges by day
+
+**Import is not a dedupe-and-append.** Every local calendar day the file mentions
+*replaces* whatever is recorded here for that day; every day the file says nothing about
+is left exactly as it is. So re-importing a corrected Tuesday fixes Tuesday rather than
+doubling it, and importing one device's Tuesday never touches the Wednesday you only
+have here.
+
+The consequence: importing a day you already have **discards** the local version of that
+day, and undo only pops the newest click, so there is no way back. Import therefore
+prompts before it destroys anything — naming how many days and how many clicks are at
+stake — and only when the file actually overlaps days that already have clicks.
+
+Malformed entries are skipped; a click needs a finite `t` and a `b` of 1, 2 or 3.
+Imported clicks are given fresh ids, so a file exported from another device can never
+collide with what is already here.
 
 ## Privacy
 
@@ -81,10 +97,11 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
 | ◐ | cycles theme: auto → light → dark |
 | Export JSON | back the log up, or move it to another device |
+| Import JSON | merge a file back in — see **Import merges by day** below |
 
 The buttons carry no numerals — the colour *is* the identity, and the badge on each one
 counts **today**. The range chips scope the chart. The Timeline screen is the chart and
-an export button, nothing else: no log table, no clear, no importer. Undo lives in the
+an export/import pair, nothing else: no log table, no clear. Undo lives in the
 top bar instead, next to the theme toggle, so a mistaken tap can be dropped without
 leaving the pad; it greys out when the log is empty.
 

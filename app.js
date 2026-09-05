@@ -461,6 +461,57 @@
     toast(`Removed ${NAMES[c.b].toLowerCase()} at ${fSec.format(new Date(c.t))}`);
   });
 
+  /* Import merges by whole local day: every day present in the file replaces
+     whatever is recorded here for that day, and days the file says nothing
+     about are left exactly as they are. Not a dedupe-and-append — re-importing
+     a corrected day should fix it, not double it. */
+  const dayKey = t => {
+    const d = new Date(t);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
+
+  function importClicks(incoming) {
+    const rows = [];
+    for (const c of incoming) {
+      const t = Number(c && c.t), b = Number(c && c.b);
+      if (Number.isFinite(t) && [1, 2, 3].includes(b)) rows.push({ t, b });
+    }
+    if (!rows.length) return toast('No clicks in that file');
+
+    const days = new Set(rows.map(r => dayKey(r.t)));
+    const doomed = clicks.filter(c => days.has(dayKey(c.t))).length;
+    // Replacing a day cannot be undone — undo only pops the newest click
+    if (doomed && !confirm(
+      `This file covers ${plural(days.size, 'day')}. Importing replaces what is already `
+      + `recorded on ${days.size === 1 ? 'that day' : 'those days'} — ${plural(doomed, 'click')} `
+      + `will be discarded. Every other day is left alone.\n\nContinue?`)) return;
+
+    clicks = clicks.filter(c => !days.has(dayKey(c.t)));
+    for (const r of rows) clicks.push({ id: `${r.t}-${r.b}-i${seq++}`, t: r.t, b: r.b });
+    clicks.sort((a, z) => a.t - z.t);
+    active = null;
+    save();
+    render();
+    toast(`Imported ${plural(rows.length, 'click')} across ${plural(days.size, 'day')}`);
+  }
+
+  $('import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', ev => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';                 // so re-picking the same file fires again
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => toast('Could not read that file');
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(String(reader.result)); } catch { return toast('Not valid JSON'); }
+      if (!Array.isArray(data)) return toast('Expected a JSON array');
+      importClicks(data);
+    };
+    reader.readAsText(file);
+  });
+
   $('export').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(clicks, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
