@@ -6,6 +6,9 @@
   const STORE_KEY = 'click-timeline/v1';
   const THEME_KEY = 'click-timeline/theme';
   const DRAWER_KEY = 'click-timeline/drawer';
+  const NUDGE_NEXT = 'click-timeline/nudge-next';   // count at which to ask again
+  const NUDGE_OFF  = 'click-timeline/nudge-off';    // '1' once they say never
+  const NUDGE_STEP = 100;
   const SERIES = { 1: 'var(--series-1)', 2: 'var(--series-2)', 3: 'var(--series-3)' };
   const NAMES  = { 1: 'Blue', 2: 'Yellow', 3: 'Red' };   // 1 at the bottom of the rail
   const DAY = 86400000;
@@ -474,6 +477,7 @@
     save();
     render();
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
+    maybeNudge();
   }
 
   /* ── Toast ─────────────────────────────────────────────── */
@@ -617,6 +621,71 @@
       next.focus();
     });
   });
+
+  /* ── Milestone nudge ───────────────────────────────────────
+     Every NUDGE_STEP clicks, once, ask for a coin. Only ever triggered by a
+     real tap — never by an import, which could cross several milestones at
+     once and would ambush someone who just restored a backup.
+
+     Both the "later" and "never" answers live in localStorage, so clearing
+     site data resets them. Nothing to do about that without an account, and
+     an account is the one thing this app refuses to have. */
+  const nudge = $('nudge');
+
+  // While any amount is still a placeholder the whole feature stays off, so a
+  // half-configured build never shows anyone a dead donate button.
+  const giveLinks = [...nudge.querySelectorAll('.nudge-dot')];
+  const nudgeArmed = giveLinks.length > 0
+    && giveLinks.every(a => !a.getAttribute('href').includes('REPLACE-WITH'));
+
+  const LINES = [
+    n => `${n} clicks. So much data.`,
+    n => `${n} clicks. The data grows.`,
+    n => `${n} clicks. This is a serious amount of clicking.`,
+  ];
+
+  function nudgeState() {
+    try {
+      if (localStorage.getItem(NUDGE_OFF) === '1') return null;
+      const n = Number(localStorage.getItem(NUDGE_NEXT));
+      return { next: Number.isFinite(n) && n > 0 ? n : NUDGE_STEP };
+    } catch { return null; }
+  }
+
+  function setNudge(key, value) {
+    try { localStorage.setItem(key, value); } catch {}
+  }
+
+  // The next round number strictly above where they are now, so answering
+  // "later" cannot re-fire on the very next tap
+  const nextMilestone = n => (Math.floor(n / NUDGE_STEP) + 1) * NUDGE_STEP;
+
+  function closeNudge(mode) {
+    if (mode === 'never') setNudge(NUDGE_OFF, '1');
+    else setNudge(NUDGE_NEXT, String(nextMilestone(clicks.length)));
+    if (nudge.open) nudge.close();
+  }
+
+  function maybeNudge() {
+    if (!nudgeArmed) return;
+    const state = nudgeState();
+    if (!state || clicks.length < state.next) return;
+
+    const hit = Math.floor(clicks.length / NUDGE_STEP) * NUDGE_STEP;
+    $('nudge-title').textContent = LINES[(hit / NUDGE_STEP - 1) % LINES.length](hit);
+    $('nudge-later').textContent = `Nudge me at ${nextMilestone(clicks.length)}`;
+    try { nudge.showModal(); } catch { return; }   // no dialog support: skip silently
+  }
+
+  for (const a of giveLinks) {
+    // We cannot know whether the payment completed — no server to tell us. A tap
+    // on an amount is the most we can observe, and it is enough to stop asking.
+    a.addEventListener('click', () => closeNudge('never'));
+  }
+  $('nudge-later').addEventListener('click', () => closeNudge('later'));
+  $('nudge-never').addEventListener('click', () => closeNudge('never'));
+  // Escape counts as "later" — the least destructive reading of a dismissal
+  nudge.addEventListener('cancel', ev => { ev.preventDefault(); closeNudge('later'); });
 
   /* ── Data drawer — collapsed by default, choice remembered ─ */
   const drawer = $('data-drawer');

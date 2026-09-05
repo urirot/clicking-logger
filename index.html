@@ -108,6 +108,37 @@
   </button>
 </nav>
 
+<!-- ══ Milestone nudge ═══════════════════════════════════════
+     ⚠  THE DONATION LINKS LIVE HERE — swap REPLACE-WITH-PAYPAL-USERNAME for
+        your PayPal.Me handle in all three href="" values. Nothing else to do:
+        PayPal.Me takes the amount straight in the path, so no backend and no
+        API keys.
+
+        Enable the handle once at paypal.me, then these become e.g.
+        https://paypal.me/urirotem/5USD
+
+        While any link still says REPLACE-WITH, the whole popup stays switched
+        off — a half-configured build never shows anyone a dead donate button.
+     ══════════════════════════════════════════════════════════ -->
+<dialog class="nudge" id="nudge" aria-labelledby="nudge-title">
+  <h2 class="nudge-title" id="nudge-title">100 clicks. So much data.</h2>
+  <p class="nudge-body">If you want to make the developer proud, you can throw a coin in.</p>
+
+  <div class="nudge-dots">
+    <a class="nudge-dot nudge-1" data-give="1"  target="_blank" rel="noopener noreferrer"
+       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/1USD">$1</a>
+    <a class="nudge-dot nudge-2" data-give="5"  target="_blank" rel="noopener noreferrer"
+       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/5USD">$5</a>
+    <a class="nudge-dot nudge-3" data-give="10" target="_blank" rel="noopener noreferrer"
+       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/10USD">$10</a>
+  </div>
+
+  <div class="nudge-actions">
+    <button class="nudge-link" type="button" id="nudge-later">Nudge me at 200</button>
+    <button class="nudge-link" type="button" id="nudge-never">Never again</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="app.js"></script>

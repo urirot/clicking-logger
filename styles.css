@@ -309,3 +309,51 @@ main {
 .tabbtn-glyph { font-size: 1rem; line-height: 1; }
 .tabbtn:hover { color: var(--ink-2); }
 .tabbtn.is-active { color: var(--ink); background: var(--wash); font-weight: 650; }
+
+/* ── Milestone nudge ────────────────────────────────────────
+   A native <dialog>, so focus trapping, Escape and the top layer come from the
+   browser rather than from hand-rolled JavaScript. */
+.nudge {
+  width: min(340px, calc(100vw - 40px));
+  padding: 26px 22px 18px;
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.nudge::backdrop { background: rgba(0,0,0,0.45); backdrop-filter: blur(3px); }
+.nudge-title {
+  margin: 0 0 8px; font-size: 1.25rem; font-weight: 680; letter-spacing: -0.02em;
+}
+.nudge-body { margin: 0 0 22px; font-size: .875rem; line-height: 1.5; color: var(--ink-2); }
+
+/* The amounts sit on the app's own dots — same three colours, same shape */
+.nudge-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 20px; }
+.nudge-dot {
+  flex: 0 0 auto; width: 76px; height: 76px; border-radius: 50%;
+  display: grid; place-items: center; text-decoration: none;
+  font-size: 1.125rem; font-weight: 680; color: #fff;
+  box-shadow: var(--dot-shadow);
+  transition: transform .08s ease, filter .12s ease;
+}
+.nudge-dot:hover { filter: brightness(1.06); transform: translateY(-2px); }
+.nudge-dot:active { transform: translateY(0) scale(.96); }
+.nudge-1 { background: var(--series-1); }
+.nudge-3 { background: var(--series-3); }
+/* White on yellow fails contrast; this is the one dot that needs dark ink */
+.nudge-2 { background: var(--series-2); color: #241a00; }
+
+.nudge-actions {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px;
+  border-top: 1px solid var(--hairline); padding-top: 14px;
+}
+.nudge-link {
+  font: inherit; font-size: .8125rem; color: var(--ink-muted);
+  background: none; border: 0; padding: 6px 4px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.nudge-link:hover { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nudge-dot { transition: none; }
+}

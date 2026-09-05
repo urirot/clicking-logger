@@ -11,8 +11,8 @@ const check = (cond, msg) => { if (!cond) errors.push('FAIL: ' + msg); };
    the way a real browser reports them. Boots a fresh window each call, optionally
    with the log pre-seeded — the rate curve can only be shown to fall against
    history, and taps made through the UI all land at `now`. */
-function boot(seed, extra) {
-  const dom = new JSDOM(pageSrc, {
+function boot(seed, extra, transform) {
+  const dom = new JSDOM(transform ? transform(pageSrc) : pageSrc, {
     runScripts: 'outside-only', pretendToBeVisual: true, url: 'http://localhost:8731/',
   });
   const { window } = dom;
@@ -32,6 +32,13 @@ function boot(seed, extra) {
   Object.defineProperty(window.HTMLElement.prototype, 'offsetWidth',  { get: () => 120 });
   Object.defineProperty(window.HTMLElement.prototype, 'offsetHeight', { get: () => 40 });
   window.confirm = () => true;
+  // jsdom ships HTMLDialogElement but not showModal()/close(); the app uses them
+  // for focus trapping and Escape, so stand them in for the test.
+  const D = window.HTMLDialogElement.prototype;
+  if (!D.showModal) {
+    D.showModal = function () { this.setAttribute('open', ''); };
+    D.close = function () { this.removeAttribute('open'); };
+  }
 
   if (seed) window.localStorage.setItem('click-timeline/v1', JSON.stringify(seed));
   for (const k in extra) window.localStorage.setItem(k, extra[k]);   // each JSDOM has its own storage
@@ -436,6 +443,75 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   await new Promise(r => setTimeout(r, 60));
   check(JSON.parse(w4.localStorage.getItem('click-timeline/v1')).length === 3,
     'declining the overwrite prompt leaves the log untouched');
+}
+
+
+/* --- The milestone nudge: configured links arm it, a real tap at a round
+   hundred opens it, an import never does. */
+{
+  const live = html => html.replace(/REPLACE-WITH-PAYPAL-USERNAME/g, 'someone');
+  const at = n => Array.from({ length: n },
+    (_, i) => ({ id: `s${i}`, t: Date.now() - (n - i) * 60000, b: 1 + (i % 3) }));
+  const tapOn = w => w.document.querySelector('.tap[data-btn="1"]')
+    .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const fire = (w, id) => w.document.getElementById(id)
+    .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+
+  { // unconfigured links keep the whole feature switched off
+    const w = boot(at(99));
+    tapOn(w);
+    check(w.document.getElementById('nudge').open !== true,
+      'placeholder donate links mean the popup never shows');
+  }
+
+  const w = boot(at(99), null, live);
+  const dlg = () => w.document.getElementById('nudge');
+  check(dlg().open !== true, 'closed before the hundredth click');
+  tapOn(w);
+  check(dlg().open === true, 'the hundredth click opens the nudge');
+  check(w.document.getElementById('nudge-title').textContent === '100 clicks. So much data.',
+    `titled with the count, got "${w.document.getElementById('nudge-title').textContent}"`);
+  check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 200',
+    `later names the next milestone, got "${w.document.getElementById('nudge-later').textContent}"`);
+  check(w.document.querySelectorAll('.nudge-dot').length === 3, 'three amounts, on three dots');
+  check([...w.document.querySelectorAll('.nudge-dot')].every(a => a.rel.includes('noopener')),
+    'donate links hand the payment page no window reference');
+
+  fire(w, 'nudge-later');
+  check(dlg().open !== true, 'later closes it');
+  check(w.localStorage.getItem('click-timeline/nudge-next') === '200', 'later stores the next milestone');
+  tapOn(w);
+  check(dlg().open !== true, 'and it stays shut on click 101');
+
+  { // an import that vaults past a milestone must not ambush anyone
+    const w2 = boot(at(99), null, live);
+    const input = w2.document.getElementById('import-file');
+    const rows = at(400).map(c => ({ t: c.t, b: c.b }));
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [new w2.File([JSON.stringify(rows)], 'c.json', { type: 'application/json' })],
+    });
+    input.dispatchEvent(new w2.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 60));
+    check(w2.document.getElementById('nudge').open !== true,
+      'importing past a milestone does not open the nudge');
+  }
+
+  { // never is permanent, and tapping an amount counts as never
+    const w3 = boot(at(99), null, live);
+    tapOn(w3);
+    fire(w3, 'nudge-never');
+    check(w3.localStorage.getItem('click-timeline/nudge-off') === '1', 'never is recorded');
+    check(boot(at(199), { 'click-timeline/nudge-off': '1' }, live)
+      .document.getElementById('nudge').open !== true, 'and survives a reload');
+
+    const w4 = boot(at(99), null, live);
+    tapOn(w4);
+    w4.document.querySelector('.nudge-dot')
+      .dispatchEvent(new w4.MouseEvent('click', { bubbles: true }));
+    check(w4.localStorage.getItem('click-timeline/nudge-off') === '1',
+      'tapping an amount also stops the asking');
+  }
 }
 
 console.log(errors.length ? errors.join('\n') : '✓ all smoke checks passed');

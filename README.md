@@ -46,6 +46,29 @@ Malformed entries are skipped; a click needs a finite `t` and a `b` of 1, 2 or 3
 Imported clicks are given fresh ids, so a file exported from another device can never
 collide with what is already here.
 
+## The milestone nudge
+
+Every 100 clicks, once, the app asks for a coin: a small dialog titled with the
+count, three amounts on three dots, and two ways out — *Nudge me at 200* or
+*Never again*.
+
+**To switch it on**, enable a PayPal.Me handle and replace
+`REPLACE-WITH-PAYPAL-USERNAME` in the three `href`s in `index.html`. PayPal.Me
+takes the amount in the path (`/5USD`), so there is no backend and no API key.
+**Until all three links are real the popup never appears at all** — a
+half-configured build cannot show anyone a dead donate button.
+
+Three deliberate limits, none of them fixable without an account, which is the
+one thing this app refuses to have:
+
+* **It cannot tell whether you paid.** There is no server to hear back from. A
+  tap on an amount is the most it can observe, and that is what stops the
+  asking — so someone can tap, not pay, and never be asked again.
+* **The answers live in `localStorage`.** Clearing site data resets them, and
+  the nudge comes back.
+* **Only a real tap triggers it.** An import can cross several milestones at
+  once, and ambushing someone who just restored a backup would be rude.
+
 ## Privacy
 
 **Your click data never leaves your device.** It lives in the browser's `localStorage`
