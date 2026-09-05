@@ -1,8 +1,8 @@
 # Click Timeline
 
 A one-page app: tap **blue**, **yellow** or **red** to stamp the current time, then read the whole
-log off one picture — three rate curves showing how fast each colour is being tapped at
-each moment, over a rail that keeps every individual tap visible as its own tick.
+log off one picture — one line per colour through its click count per hour or day, over a
+rail that keeps every individual tap visible as its own tick.
 
 Built as an offline-capable PWA so it installs to an Android/iOS home screen and works
 with no signal.
@@ -93,17 +93,30 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Tap a colour | records a click at the current time |
 | Keys `1` `2` `3` | same, on a desktop keyboard — `1` blue, `2` yellow, `3` red |
 | Today / 7 / 30 / All | scopes the chart — opens on **7 days** |
-| Hover or tap the chart | nearest tap: its exact timestamp, and all three colours' rates at that moment |
+| Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
 | ◐ | cycles theme: auto → light → dark |
 | Export JSON | back the log up, or move it to another device |
 | Import JSON | merge a file back in — see **Import merges by day** below |
+| Data & backup | the export/import row collapses; the state is remembered |
 
 The buttons carry no numerals — the colour *is* the identity, and the badge on each one
 counts **today**. The range chips scope the chart. The Timeline screen is the chart and
 an export/import pair, nothing else: no log table, no clear. Undo lives in the
 top bar instead, next to the theme toggle, so a mistaken tap can be dropped without
 leaving the pad; it greys out when the log is empty.
+
+## Layout
+
+The app is one fixed-height flex column — top bar, a single scroll region (`<main>`),
+tab bar — rather than a long page with a floating tab bar over it. The tap screen sizes
+itself to that region and so **never scrolls at any viewport height**; the buttons shrink
+instead. Only the timeline scrolls, and only inside `<main>`.
+
+One trap that follows: `#panel-tap` sets `display: flex`, and an id selector outranks the
+UA's `[hidden] { display: none }`, so a hidden panel stays painted. `styles.css` carries
+an explicit `[hidden] { display: none !important }` reset for that, and the smoke test
+asserts it is still there — jsdom has no layout, so nothing else would catch it.
 
 ## Files
 
@@ -143,34 +156,29 @@ npm run icons
 
 ## Chart notes
 
-**The curve is a rate, not a total.** Each line is how many taps per hour / day / week /
-month that colour is getting *at that moment*, so it rises and falls and the three cross
-one another. This is deliberate: a cumulative running total can only ever climb, which
-shows accumulation and hides change — exactly the wrong read for "am I doing this more
-or less than I was?". The unit follows the visible span — per hour out to 2 days, per
-day to 120, then per week and per month — and is carried by the subtitle
-(`peak 27/day`) and the tooltip rather than by a caption on the axis, which is left as
-bare numbers.
+**The lines are plain counts.** Each one is how many clicks that colour got in each
+period — an integer you could arrive at by hand from the log. Nothing is smoothed,
+weighted, accumulated or stacked, so the axis only ever shows whole numbers and the
+lines rise and fall independently. The period follows the visible span: per hour out to
+2 days, per day to 120, then per week and per month. Periods are stepped with `Date`
+methods rather than fixed millisecond offsets, so a DST change doesn't drift the
+boundaries.
 
-**How the rate is computed.** A sliding triangular window, half-width `max(span/12,
-unit)/2`, sampled every 2px across the plot. The weights are normalised by the
-half-width, so a steady stream of *r* taps per unit reads as exactly *r* — the number on
-the axis is a real rate, not an arbitrary activity score. The window is fed from the
-**whole log**, not just the visible slice, so it is properly full at both edges instead
-of dipping to zero wherever the range happens to be cut.
+Each period's point sits at its midpoint, clamped so a part-covered first or last period
+stays inside the axes. Per-period dots are drawn up to 60 periods, past which they'd be
+noise.
 
-**Nothing is filled or stacked.** No wash under the curves: with three lines that cross,
-a fill reads as stacked area and invites adding the values together, which would be
-meaningless here. Each curve is one line plus a wide, faint copy behind it for bloom.
+**Nothing is filled.** With lines that cross, a wash under them reads as stacked area
+and invites adding the values together, which would be meaningless here.
 
-Under the curves, the **event rail** keeps the raw data visible: one row per colour
-(blue at the bottom, so 1 → 3 reads upward), one tick per tap at its exact time. The
-curve answers "how much, and is it changing"; the rail answers "when, exactly".
+Under the lines, the **event rail** keeps the raw data visible: one row per colour (blue
+at the bottom, so 1 → 3 reads upward), one tick per tap at its exact time. The lines
+answer "how many, and is it changing"; the rail answers "when, exactly".
 
-Hovering or tapping picks the nearest tap by time — aim is x-dominant, with the rail row
-only breaking ties, so a finger on the red row picks a red tap. It drops a node on **all
-three** curves at that instant, so the tooltip's three numbers are visibly the three
-lines, and the subtitle carries the peak rate for the range.
+Hovering or tapping picks the nearest tap — aim is x-dominant, with the rail row only
+breaking ties, so a finger on the red row picks a red tap — then **bands that tap's whole
+period** across the plot and drops a node on all three lines, so the tooltip's three
+counts are visibly the three lines. The subtitle carries the peak for the range.
 
 On the 7- and 30-day ranges the subtitle also carries the change against the preceding
 window. That delta is **only** shown when the log actually covers the preceding

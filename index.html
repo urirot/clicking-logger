@@ -61,7 +61,7 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Click rate over time</h2>
+        <h2>Clicks over time</h2>
         <p class="card-sub" id="chart-sub">&nbsp;</p>
       </div>
 
@@ -72,23 +72,26 @@
       </div>
 
       <div class="chart-wrap">
-        <p class="sr-only" id="chart-title-a11y">Rate of clicks over time. Three curves show how many clicks per hour, day, week or month the blue, yellow and red buttons are getting at each moment across the selected range, measured over a sliding window, so each curve rises and falls independently and the three are directly comparable. The strip along the bottom marks each individual click as a tick, one row per colour, with blue at the bottom, then yellow, then red.</p>
+        <p class="sr-only" id="chart-title-a11y">Clicks per period over time. Three lines show how many clicks the blue, yellow and red buttons each got in every hour, day, week or month across the selected range — plain counts, not totalled up and not stacked, so each line rises and falls on its own. The strip along the bottom marks each individual click as a tick, one row per colour, with blue at the bottom, then yellow, then red.</p>
         <svg id="chart" role="img" aria-labelledby="chart-title-a11y"></svg>
         <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
         <p class="empty" id="chart-empty" hidden>Nothing in this range.</p>
       </div>
     </section>
 
-    <section class="actions" aria-label="Data">
-      <button class="btn" type="button" id="export">Export JSON</button>
-      <button class="btn" type="button" id="import">Import JSON</button>
-      <input type="file" id="import-file" accept="application/json,.json" hidden>
-    </section>
-
-    <p class="footnote">
-      Everything is stored only in this browser (<code>localStorage</code>) — no server, no account.
-      Export a JSON backup before clearing site data.
-    </p>
+    <details class="drawer" id="data-drawer">
+      <summary>Data &amp; backup</summary>
+      <section class="actions" aria-label="Data">
+        <button class="btn" type="button" id="export">Export JSON</button>
+        <button class="btn" type="button" id="import">Import JSON</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </section>
+      <p class="footnote">
+        Everything is stored only in this browser (<code>localStorage</code>) — no server, no account.
+        Export a JSON backup before clearing site data. Import replaces every day the file
+        mentions and leaves the rest alone.
+      </p>
+    </details>
   </section>
 
 </main>

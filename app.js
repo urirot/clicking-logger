@@ -5,6 +5,7 @@
 
   const STORE_KEY = 'click-timeline/v1';
   const THEME_KEY = 'click-timeline/theme';
+  const DRAWER_KEY = 'click-timeline/drawer';
   const SERIES = { 1: 'var(--series-1)', 2: 'var(--series-2)', 3: 'var(--series-3)' };
   const NAMES  = { 1: 'Blue', 2: 'Yellow', 3: 'Red' };   // 1 at the bottom of the rail
   const DAY = 86400000;
@@ -37,6 +38,8 @@
   const fTime = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
   const fSec  = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const fDay  = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+  const fWkDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  const fMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
   function startOfToday() {
@@ -114,61 +117,85 @@
   };
 
   /* ── Chart ─────────────────────────────────────────────────
-     Three rate curves over an event rail. The curve is *not* a running total —
-     it is how fast each colour is being tapped at that moment, so it falls as
-     well as rises and the three are directly comparable without stacking.
-     The rail underneath keeps every individual tap visible as its own tick. */
+     One line per colour through plain integer counts: how many clicks that
+     colour got in each period. Nothing is smoothed, weighted or accumulated —
+     the number on the axis is a count you could arrive at by hand. The period
+     follows the visible span, and the rail underneath keeps every individual
+     tap visible at its exact time. */
   let hits = [];          // { x, ry, c } — one entry per click
-  let curves = {};        // b -> [{ t, v }] sampled rate, kept for the readout
+  let bins = [];          // the periods currently plotted
 
   const RAIL_H   = 42;    // event rail at the foot of the plot
-  const RAIL_GAP = 14;    // breathing room between the curves and the rail
-  const SAMPLE_PX = 2;    // one rate sample every 2px — smooth without cost
+  const RAIL_GAP = 14;    // breathing room between the lines and the rail
+  const MAX_BINS = 400;   // guard: a pathological domain cannot hang the render
+  const DOT_LIMIT = 60;   // past this the per-period dots are just noise
 
-  /* The unit the rate is quoted in follows the visible span, so the number in
-     the axis stays human: taps per hour on a day, per day on a month. */
-  const RATE_UNITS = [
-    { upTo:    2 * DAY, ms:   3600e3, noun: 'hour'  },
-    { upTo:  120 * DAY, ms:       DAY, noun: 'day'   },
-    { upTo: 1095 * DAY, ms:   7 * DAY, noun: 'week'  },
-    { upTo:   Infinity, ms:  30 * DAY, noun: 'month' },
+  const PERIODS = [
+    { upTo:    2 * DAY, kind: 'hour'  },
+    { upTo:  120 * DAY, kind: 'day'   },
+    { upTo: 1095 * DAY, kind: 'week'  },
+    { upTo:   Infinity, kind: 'month' },
   ];
-  const rateUnit = span => RATE_UNITS.find(u => span <= u.upTo);
+  const periodOf = span => PERIODS.find(p => span <= p.upTo).kind;
 
-  /* Sliding triangular window. The weight is normalised by the half-width, so
-     a steady stream of r taps per unit reads as exactly r — the curve is a
-     rate, not an arbitrary "activity score". Fed from the whole log rather
-     than just the visible slice, so the window is full at both edges instead
-     of dipping to zero where the range happens to be cut. */
-  function rateCurve(times, t0, t1, half, unit, n) {
-    const out = [];
-    let lo = 0, hi = 0;
-    for (let i = 0; i <= n; i++) {
-      const t = t0 + ((t1 - t0) * i) / n;
-      while (hi < times.length && times[hi] <= t + half) hi++;
-      while (lo < times.length && times[lo] < t - half) lo++;
-      let sum = 0;
-      for (let k = lo; k < hi; k++) sum += 1 - Math.abs(times[k] - t) / half;
-      out.push({ t, v: (sum / half) * unit });
+  function binStart(t, kind) {
+    const d = new Date(t);
+    d.setMinutes(0, 0, 0);
+    if (kind === 'hour') return d.getTime();
+    d.setHours(0, 0, 0, 0);
+    if (kind === 'day') return d.getTime();
+    if (kind === 'week') { d.setDate(d.getDate() - d.getDay()); return d.getTime(); }
+    d.setDate(1);
+    return d.getTime();
+  }
+
+  // Stepped with Date methods, not +N ms, so DST shifts don't drift the edges
+  function binNext(t, kind) {
+    const d = new Date(t);
+    if (kind === 'hour')      d.setHours(d.getHours() + 1);
+    else if (kind === 'day')  d.setDate(d.getDate() + 1);
+    else if (kind === 'week') d.setDate(d.getDate() + 7);
+    else                      d.setMonth(d.getMonth() + 1);
+    return d.getTime();
+  }
+
+  function binize(data, [t0, t1], kind) {
+    const list = [], byStart = new Map();
+    for (let t = binStart(t0, kind); t <= t1 && list.length < MAX_BINS; t = binNext(t, kind)) {
+      const bk = { t, end: binNext(t, kind), kind, n: { 1: 0, 2: 0, 3: 0 }, total: 0 };
+      byStart.set(t, bk);
+      list.push(bk);
     }
-    return out;
+    for (const c of data) {
+      const bk = byStart.get(binStart(c.t, kind));
+      if (bk) { bk.n[c.b]++; bk.total++; }
+    }
+    return list;
   }
 
-  function niceStep(peak, target) {
+  function binLabel(bk) {
+    const d = new Date(bk.t);
+    if (bk.kind === 'hour')  return `${fDay.format(d)} · ${fTime.format(d)}`;
+    if (bk.kind === 'day')   return fWkDay.format(d);
+    if (bk.kind === 'week')  return `Week of ${fDay.format(d)}`;
+    return fMonth.format(d);
+  }
+
+  // Whole numbers only — half a click is not a thing
+  function countStep(peak, target) {
     const raw = peak / target;
-    if (!(raw > 0)) return 1;
-    const pow = 10 ** Math.floor(Math.log10(raw));
-    for (const f of [1, 2, 2.5, 5, 10]) if (pow * f >= raw) return pow * f;
-    return pow * 10;
+    const pow = 10 ** Math.floor(Math.log10(Math.max(raw, 1)));
+    for (const f of [1, 2, 2.5, 5, 10]) {
+      const v = Math.round(pow * f);
+      if (v >= raw) return Math.max(1, v);
+    }
+    return Math.max(1, Math.round(pow * 10));
   }
-
-  // Rates are fractional; counts are not. Keep the axis short either way.
-  const fRate = v => (v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
 
   function drawChart(data, [t0, t1]) {
     svg.textContent = '';
     hits = [];
-    curves = {};
+    bins = [];
     const empty = !data.length;
     $('chart-empty').hidden = !empty;
     svg.style.visibility = empty ? 'hidden' : 'visible';
@@ -191,21 +218,18 @@
     const plotTop = m.top + 6;   // headroom, so a peak never touches the top rule
     const plotBottom = Math.max(railTop - RAIL_GAP, plotTop + 24);
 
-    // The window is wide enough to smooth, never narrower than one unit
-    const unit = rateUnit(t1 - t0);
-    const half = Math.max((t1 - t0) / 12, unit.ms) / 2;
-    const n = Math.max(8, Math.round(iw / SAMPLE_PX));
+    const kind = periodOf(t1 - t0);
+    bins = binize(data, [t0, t1], kind);
 
     let peak = 0;
-    for (const b of [1, 2, 3]) {
-      const times = clicks.filter(c => c.b === b).map(c => c.t);
-      if (!data.some(c => c.b === b)) continue;   // nothing in range: no line
-      curves[b] = rateCurve(times, t0, t1, half, unit.ms, n);
-      for (const p of curves[b]) if (p.v > peak) peak = p.v;
-    }
-    const step = niceStep(peak || 1, 3);
-    const yTop = Math.max(Math.ceil((peak || 1) / step) * step, step);
+    for (const bk of bins) for (const b of [1, 2, 3]) if (bk.n[b] > peak) peak = bk.n[b];
+    const step = countStep(Math.max(peak, 1), 3);
+    const yTop = Math.max(Math.ceil(Math.max(peak, 1) / step) * step, step);
     const y = v => plotBottom - (v / yTop) * (plotBottom - plotTop);
+
+    // A period's point sits at its midpoint, clamped so a part-covered first or
+    // last period stays inside the axes instead of bleeding into the gutter
+    const mid = bk => (Math.max(x(bk.t), m.left) + Math.min(x(bk.end), m.left + iw)) / 2;
 
     // The rail reads as its own strip, not as more plot
     svg.append(el('rect', {
@@ -213,16 +237,17 @@
       width: iw, height: railBottom - railTop + 6, rx: 9,
     }));
 
-    // Rate grid
-    for (let v = 0; v <= yTop + 1e-9; v += step) {
+    // Count grid
+    for (let v = 0; v <= yTop; v += step) {
       const py = y(v);
       svg.append(el('line', {
         class: v === 0 ? 'baseline' : 'gridline', x1: m.left, x2: m.left + iw, y1: py, y2: py,
       }));
       const lab = el('text', { class: 'y-label', x: m.left - 8, y: py + 3.5, 'text-anchor': 'end' });
-      lab.textContent = fRate(v);
+      lab.textContent = String(v);
       svg.append(lab);
     }
+
     // Time grid
     const tickTarget = w < 380 ? 4 : w < 560 ? 5 : 7;
     for (const tk of ticks(t0, t1, tickTarget)) {
@@ -235,19 +260,36 @@
       svg.append(lab);
     }
 
+    // The period being read, banded across the plot so it is obvious which
+    // slice of time the tooltip's numbers cover
     const act = data.find(c => c.id === active);
-    if (act) {
-      const cx = x(act.t);
-      svg.append(el('line', { class: 'crosshair', x1: cx, x2: cx, y1: plotTop, y2: railBottom }));
+    const actBin = act && bins.find(bk => act.t >= bk.t && act.t < bk.end);
+    if (actBin) {
+      const sx = Math.max(x(actBin.t), m.left);
+      const ex = Math.min(x(actBin.end), m.left + iw);
+      svg.append(el('rect', {
+        class: 'band', x: sx, y: plotTop, width: Math.max(ex - sx, 2), height: railBottom - plotTop,
+      }));
     }
 
-    // The curves. No fill under them — a wash would read as stacking, and
-    // these deliberately cross one another.
+    // One line per colour, straight between period counts — no smoothing, and
+    // no fill: with lines that cross, a wash reads as stacked area.
     for (const b of [1, 2, 3]) {
-      if (!curves[b]) continue;
-      const d = curves[b].map((p, i) => `${i ? 'L' : 'M'}${x(p.t)} ${y(p.v)}`).join('');
+      if (!data.some(c => c.b === b)) continue;   // nothing in range: no line
+      const d = bins.map((bk, i) => `${i ? 'L' : 'M'}${mid(bk)} ${y(bk.n[b])}`).join('');
       svg.append(el('path', { class: 'bloom', d, stroke: SERIES[b] }));
       svg.append(el('path', { class: 'line', d, stroke: SERIES[b], 'data-series': b }));
+    }
+
+    if (bins.length <= DOT_LIMIT) {
+      for (const b of [1, 2, 3]) {
+        if (!data.some(c => c.b === b)) continue;
+        for (const bk of bins) {
+          svg.append(el('circle', {
+            class: 'bin-dot', cx: mid(bk), cy: y(bk.n[b]), r: 2.5, fill: SERIES[b],
+          }));
+        }
+      }
     }
 
     // Rail: one row per colour, one tick per tap
@@ -273,39 +315,22 @@
       }));
     }
 
-    // Readout: a node on every curve at the crosshair, so the tooltip's three
-    // numbers are visibly the three lines at that instant
-    if (act) {
-      const readout = rateAt(act.t);
+    // Readout: a node on every line at the banded period, so the tooltip's
+    // three numbers are visibly the three lines
+    if (actBin) {
       for (const b of [1, 2, 3]) {
-        if (!curves[b]) continue;
+        if (!data.some(c => c.b === b)) continue;
         svg.append(el('circle', {
           class: 'read-dot' + (b === act.b ? ' is-active' : ''),
-          cx: x(act.t), cy: y(readout[b]), r: b === act.b ? 5 : 3.5, fill: SERIES[b],
+          cx: mid(actBin), cy: y(actBin.n[b]), r: b === act.b ? 5 : 3.5, fill: SERIES[b],
         }));
       }
-      showTooltip(act, readout, unit.noun, plotTop, x(act.t));
+      showTooltip(actBin, act.b, plotTop, mid(actBin));
     } else {
       tooltip.hidden = true;
     }
 
-    return { peak, noun: unit.noun };
-  }
-
-  // Linear read of a sampled curve at an arbitrary time
-  function rateAt(t) {
-    const out = { 1: 0, 2: 0, 3: 0 };
-    for (const b of [1, 2, 3]) {
-      const pts = curves[b];
-      if (!pts || pts.length < 2) continue;
-      const span = pts[pts.length - 1].t - pts[0].t;
-      const i = Math.max(0, Math.min(pts.length - 2,
-        Math.floor(((t - pts[0].t) / (span || 1)) * (pts.length - 1))));
-      const a = pts[i], z = pts[i + 1];
-      const f = z.t === a.t ? 0 : (t - a.t) / (z.t - a.t);
-      out[b] = a.v + (z.v - a.v) * Math.max(0, Math.min(1, f));
-    }
-    return out;
+    return { peak, kind };
   }
 
   /* ── Tooltip ───────────────────────────────────────────── */
@@ -319,18 +344,18 @@
     return row;
   }
 
-  function showTooltip(c, rates, noun, plotTop, px) {
+  function showTooltip(bk, tapped, plotTop, px) {
     tooltip.textContent = '';
     const val = document.createElement('span');
     val.className = 'tt-val';
-    val.textContent = `${fSec.format(new Date(c.t))} · ${NAMES[c.b].toLowerCase()}`;
+    val.textContent = binLabel(bk);
     const sub = document.createElement('span');
     sub.className = 'tt-sub';
-    sub.textContent = `${fDay.format(new Date(c.t))} · taps per ${noun} here`;
+    sub.textContent = plural(bk.total, 'click');
     tooltip.append(val, sub);
     for (const b of [3, 2, 1]) {           // top row first, so it reads like the chart
-      const row = ttRow(b, `${NAMES[b]} · ${fRate(rates[b])}`, b === c.b);
-      if (!rates[b]) row.classList.add('is-zero');
+      const row = ttRow(b, `${NAMES[b]} · ${bk.n[b]}`, b === tapped);
+      if (!bk.n[b]) row.classList.add('is-zero');
       tooltip.append(row);
     }
     placeTooltip(px, plotTop);
@@ -402,7 +427,7 @@
     const info = drawChart(data, d);
 
     const sub = [plural(data.length, 'click'), label];
-    if (info && info.peak > 0) sub.push(`peak ${fRate(info.peak)}/${info.noun}`);
+    if (info && info.peak > 0) sub.push(`peak ${info.peak}/${info.kind}`);
     const trend = trendNote(d);
     if (trend) sub.push(trend);
     $('chart-sub').textContent = sub.join(' · ');
@@ -538,7 +563,7 @@
     }
     $('screen-title').textContent = btn.dataset.title;
     active = null;
-    window.scrollTo(0, 0);
+    document.querySelector('main').scrollTop = 0;
     render();   // the newly shown panel now has a real width
   }
 
@@ -552,6 +577,13 @@
       activateTab(next);
       next.focus();
     });
+  });
+
+  /* ── Data drawer — collapsed by default, choice remembered ─ */
+  const drawer = $('data-drawer');
+  try { drawer.open = localStorage.getItem(DRAWER_KEY) === '1'; } catch {}
+  drawer.addEventListener('toggle', () => {
+    try { localStorage.setItem(DRAWER_KEY, drawer.open ? '1' : '0'); } catch {}
   });
 
   /* ── Theme ─────────────────────────────────────────────── */

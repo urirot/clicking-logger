@@ -52,16 +52,29 @@
 }
 
 * { box-sizing: border-box; }
+/* An id selector below would otherwise outrank the UA's [hidden] rule and
+   leave a hidden panel on screen. */
+[hidden] { display: none !important; }
 html, body { margin: 0; }
+/* The whole app is one fixed-height column: top bar, a single scroll region,
+   tab bar. The pad screen sizes itself to that region and so never scrolls;
+   only the timeline does, and only inside <main>. */
 body {
   background: var(--plane);
   color: var(--ink);
   font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  padding: 0 max(14px, env(safe-area-inset-left)) calc(78px + env(safe-area-inset-bottom));
+  height: 100vh;
+  height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-main { max-width: 720px; margin: 0 auto; }
+main {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  width: 100%; max-width: 720px; margin: 0 auto;
+  padding: 0 max(14px, env(safe-area-inset-left));
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -70,8 +83,8 @@ main { max-width: 720px; margin: 0 auto; }
 
 /* ── Top bar ────────────────────────────────────────────────── */
 .topbar {
-  max-width: 720px; margin: 0 auto;
-  padding: max(14px, env(safe-area-inset-top)) 0 10px;
+  flex: none; width: 100%; max-width: 720px; margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-left)) 10px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .topbar h1 { margin: 0; font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.01em; }
@@ -89,17 +102,12 @@ main { max-width: 720px; margin: 0 auto; }
 
 /* ── Tap pad ────────────────────────────────────────────────── */
 .pad {
+  flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column; gap: 10px;
-  height: calc(100vh - 195px);
-  height: calc(100dvh - 195px);
-  min-height: 280px;
-  max-height: 760px;
 }
 .tap {
   position: relative;
-  flex: 1 1 0; min-height: 88px;
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  padding: 0 clamp(20px, 7vw, 40px);
+  flex: 1 1 0; min-height: 0;
   border: 0; border-radius: var(--radius);
   color: #fff; cursor: pointer;
   font: inherit;
@@ -111,21 +119,26 @@ main { max-width: 720px; margin: 0 auto; }
 .tap:active { transform: scale(.965); filter: brightness(1.08); }
 .tap.is-hit { animation: pop .28s ease; }
 @keyframes pop { 0% { transform: scale(.94) } 55% { transform: scale(1.03) } 100% { transform: scale(1) } }
-@media (prefers-reduced-motion: reduce) { .tap, .tap.is-hit { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .tap, .tap.is-hit { transition: none; animation: none; }
+  .drawer > summary::before { transition: none; }
+}
 .tap-1 { background: var(--series-1); }
 .tap-3 { background: var(--series-3); }
 /* White on yellow fails; the yellow button flips to dark ink on a light pill */
 .tap-2 { background: var(--series-2); color: #241a00; }
 .tap-2 .tap-count { background: rgba(255,255,255,0.38); }
 .tap-count {
-  font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 650; font-variant-numeric: tabular-nums;
-  min-width: 3em; text-align: center;
-  padding: 6px 18px; border-radius: 999px;
+  position: absolute; top: 10px; right: 12px;
+  font-size: .8125rem; font-weight: 650; font-variant-numeric: tabular-nums;
+  min-width: 2.4em; text-align: center;
+  padding: 3px 9px; border-radius: 999px;
   background: rgba(0,0,0,0.22);
 }
 
 .last-line {
-  margin: 14px 2px 6px;
+  flex: none;
+  margin: 12px 2px;
   font-size: .8125rem; color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   min-height: 1.2em;
@@ -184,6 +197,8 @@ main { max-width: 720px; margin: 0 auto; }
 /* Readout nodes: where the three curves sit at the crosshair */
 #chart .read-dot { stroke: var(--surface); stroke-width: 1.5; }
 #chart .read-dot.is-active { stroke: var(--ink); stroke-width: 2; }
+#chart .bin-dot { stroke: none; opacity: .9; }
+#chart .band { fill: var(--wash); }
 
 /* Event rail — every individual click, one row per button */
 #chart .rail-bg { fill: var(--wash); }
@@ -194,7 +209,6 @@ main { max-width: 720px; margin: 0 auto; }
 #chart .rail-tick { opacity: .8; }
 #chart .rail-tick.is-active { opacity: 1; stroke: var(--surface); stroke-width: 1; }
 
-#chart .crosshair { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 3; }
 
 .tooltip {
   position: absolute; z-index: 5; pointer-events: none;
@@ -241,12 +255,28 @@ main { max-width: 720px; margin: 0 auto; }
 
 .legend-item b { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* ── Collapsible data drawer ────────────────────────────────── */
+.drawer { margin-top: 16px; border-top: 1px solid var(--hairline); }
+.drawer > summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 2px; cursor: pointer; list-style: none;
+  font-size: .8125rem; font-weight: 550; color: var(--ink-2);
+}
+.drawer > summary::-webkit-details-marker { display: none; }
+.drawer > summary::before {
+  content: "›"; font-size: 1.05rem; line-height: 1;
+  transition: transform .15s ease;
+}
+.drawer[open] > summary::before { transform: rotate(90deg); }
+.drawer > summary:hover { color: var(--ink); }
+.drawer .actions { margin-top: 2px; }
+
 /* ── Panels & tab bar ───────────────────────────────────────── */
-#panel-data { padding-top: 4px; }
+#panel-tap { height: 100%; display: flex; flex-direction: column; }
+#panel-data { padding: 4px 0 18px; }
 
 .tabbar {
-  position: fixed; z-index: 15;
-  left: 0; right: 0; bottom: 0;
+  flex: none; z-index: 15;
   display: flex;
   padding: 6px max(14px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));
   gap: 6px;
