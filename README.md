@@ -52,11 +52,16 @@ Every 100 clicks, once, the app asks for a coin: a small dialog titled with the
 count, three amounts on three dots, and two ways out — *Nudge me at 200* or
 *Never again*.
 
-**To switch it on**, enable a PayPal.Me handle and replace
-`REPLACE-WITH-PAYPAL-USERNAME` in the three `href`s in `index.html`. PayPal.Me
-takes the amount in the path (`/5USD`), so there is no backend and no API key.
-**Until all three links are real the popup never appears at all** — a
-half-configured build cannot show anyone a dead donate button.
+Tips go through **Ko-fi**, which sits on top of a personal PayPal account —
+the only route that works from Israel without a business number, a company, or
+a Stripe country that isn't on the list. The tip link in `index.html` is the
+entire configuration; while it still reads `REPLACE-WITH`, **the popup never
+appears at all**, so a half-configured build cannot show anyone a dead button.
+
+**One action, not three amounts.** Ko-fi picks the amount on its own page
+(it offers $1 / $5 / $10 there), so three dots promising those figures would
+all land on the same picker and promise something the link cannot keep. The
+three dots stay as the mark; the action is a single *Leave a tip*.
 
 Three deliberate limits, none of them fixable without an account, which is the
 one thing this app refuses to have:
@@ -68,6 +73,17 @@ one thing this app refuses to have:
   the nudge comes back.
 * **Only a real tap triggers it.** An import can cross several milestones at
   once, and ambushing someone who just restored a backup would be rude.
+
+## Deleting everything
+
+The reset button in the top bar does not delete anything. It opens a strip that
+says the deletion cannot be undone and puts **Export first** next to **Delete
+everything**, so the backup is one press away at the moment it matters rather
+than a sentence somebody has already scrolled past. Cancel and Escape both back
+out; the button greys itself out when there is nothing left to delete.
+
+Two friends asked for this independently, which is a better signal than one
+person's taste — including the author's, who did not want another button.
 
 ## Privacy
 
@@ -119,6 +135,7 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
 | | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
+| 🗑 | delete every click; a warning strip appears first, offering the export |
 | ◐ | cycles theme: auto → light → dark |
 | Export | back the log up, or move it to another device |
 | Import | merge a file back in — see **Import merges by day** below |

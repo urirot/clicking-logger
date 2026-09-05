@@ -449,7 +449,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
 /* --- The milestone nudge: configured links arm it, a real tap at a round
    hundred opens it, an import never does. */
 {
-  const live = html => html.replace(/REPLACE-WITH-PAYPAL-USERNAME/g, 'someone');
+  const dead = html => html.replace(/https:\/\/ko-fi\.com\/countthedots/g, 'https://REPLACE-WITH-TIP-LINK');
   const at = n => Array.from({ length: n },
     (_, i) => ({ id: `s${i}`, t: Date.now() - (n - i) * 60000, b: 1 + (i % 3) }));
   const tapOn = w => w.document.querySelector('.tap[data-btn="1"]')
@@ -457,14 +457,19 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   const fire = (w, id) => w.document.getElementById(id)
     .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
 
-  { // unconfigured links keep the whole feature switched off
-    const w = boot(at(99));
+  { // a placeholder link keeps the whole feature switched off
+    const w = boot(at(99), null, dead);
     tapOn(w);
     check(w.document.getElementById('nudge').open !== true,
-      'placeholder donate links mean the popup never shows');
+      'a placeholder tip link means the popup never shows');
   }
+  check(/^https:\/\/ko-fi\.com\//.test(
+    (pageSrc.match(/id="nudge-give"[^>]*href="([^"]+)"/s) ||
+     pageSrc.match(/href="([^"]+)"[^>]*id="nudge-give"/s) || ['', ''])[1] ||
+    (pageSrc.match(/id="nudge-give"[\s\S]{0,200}?href="([^"]+)"/) || ['', ''])[1]),
+    'the shipped tip link points at Ko-fi');
 
-  const w = boot(at(99), null, live);
+  const w = boot(at(99));
   const dlg = () => w.document.getElementById('nudge');
   check(dlg().open !== true, 'closed before the hundredth click');
   tapOn(w);
@@ -473,9 +478,9 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     `titled with the count, got "${w.document.getElementById('nudge-title').textContent}"`);
   check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 200',
     `later names the next milestone, got "${w.document.getElementById('nudge-later').textContent}"`);
-  check(w.document.querySelectorAll('.nudge-dot').length === 3, 'three amounts, on three dots');
-  check([...w.document.querySelectorAll('.nudge-dot')].every(a => a.rel.includes('noopener')),
-    'donate links hand the payment page no window reference');
+  check(w.document.querySelectorAll('.nudge-mark i').length === 3, 'the three dots stay as the mark');
+  check(w.document.getElementById('nudge-give').rel.includes('noopener'),
+    'the tip link hands the payment page no window reference');
 
   fire(w, 'nudge-later');
   check(dlg().open !== true, 'later closes it');
@@ -484,7 +489,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   check(dlg().open !== true, 'and it stays shut on click 101');
 
   { // an import that vaults past a milestone must not ambush anyone
-    const w2 = boot(at(99), null, live);
+    const w2 = boot(at(99));
     const input = w2.document.getElementById('import-file');
     const rows = at(400).map(c => ({ t: c.t, b: c.b }));
     Object.defineProperty(input, 'files', {
@@ -498,19 +503,59 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   }
 
   { // never is permanent, and tapping an amount counts as never
-    const w3 = boot(at(99), null, live);
+    const w3 = boot(at(99));
     tapOn(w3);
     fire(w3, 'nudge-never');
     check(w3.localStorage.getItem('click-timeline/nudge-off') === '1', 'never is recorded');
-    check(boot(at(199), { 'click-timeline/nudge-off': '1' }, live)
+    check(boot(at(199), { 'click-timeline/nudge-off': '1' })
       .document.getElementById('nudge').open !== true, 'and survives a reload');
 
-    const w4 = boot(at(99), null, live);
+    const w4 = boot(at(99));
     tapOn(w4);
-    w4.document.querySelector('.nudge-dot')
+    w4.document.getElementById('nudge-give')
       .dispatchEvent(new w4.MouseEvent('click', { bubbles: true }));
     check(w4.localStorage.getItem('click-timeline/nudge-off') === '1',
-      'tapping an amount also stops the asking');
+      'following the tip link also stops the asking');
+  }
+}
+
+
+/* --- Delete everything: two presses, with the export offered between them. */
+{
+  const seeded = [{ id: 'r1', t: Date.now() - 60000, b: 1 }, { id: 'r2', t: Date.now(), b: 2 }];
+  const w = boot(seeded);
+  const g = id => w.document.getElementById(id);
+  const fire = id => g(id).dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const stored = () => JSON.parse(w.localStorage.getItem('click-timeline/v1')).length;
+
+  check(g('reset') !== null, 'a reset button sits in the top bar');
+  check(g('reset-bar').hidden === true, 'the warning is hidden until asked for');
+
+  fire('reset');
+  check(g('reset-bar').hidden === false, 'pressing reset reveals the warning');
+  check(stored() === 2, 'and deletes nothing on its own');
+  const msg = g('reset-msg').textContent;
+  check(/cannot be undone/i.test(msg), `the warning says it is irreversible: "${msg.trim()}"`);
+  check(g('reset-export') !== null, 'and offers the export right there, not just a mention of it');
+
+  fire('reset-cancel');
+  check(g('reset-bar').hidden === true, 'cancel closes it');
+  check(stored() === 2, 'with the log intact');
+
+  fire('reset');
+  fire('reset-go');
+  check(stored() === 0, 'confirming empties the log');
+  check(g('reset-bar').hidden === true, 'and closes the warning');
+  check(g('reset').disabled === true, 'reset greys out with nothing left to delete');
+  check(/^Deleted 2 clicks/.test(g('toast').textContent),
+    `the toast counts what went: "${g('toast').textContent}"`);
+
+  { // Escape closes the warning rather than deleting anything
+    const w2 = boot(seeded);
+    w2.document.getElementById('reset').dispatchEvent(new w2.MouseEvent('click', { bubbles: true }));
+    w2.document.dispatchEvent(new w2.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check(w2.document.getElementById('reset-bar').hidden === true, 'Escape closes the warning');
+    check(JSON.parse(w2.localStorage.getItem('click-timeline/v1')).length === 2, 'and keeps the log');
   }
 }
 

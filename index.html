@@ -24,11 +24,29 @@
     <button id="undo" class="icon-btn" type="button" aria-label="Undo last click" title="Undo last click">
       <span aria-hidden="true">↶</span>
     </button>
+    <button id="reset" class="icon-btn" type="button" aria-label="Delete all clicks"
+            title="Delete all clicks" aria-expanded="false" aria-controls="reset-bar">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h16M9 6V4h6v2M7 6l1 14h8l1-14"/>
+      </svg>
+    </button>
     <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
       <span aria-hidden="true" id="theme-glyph">◐</span>
     </button>
   </div>
 </header>
+
+<div class="danger" id="reset-bar" role="alertdialog" aria-labelledby="reset-msg" hidden>
+  <p class="danger-msg" id="reset-msg">
+    <b>Delete every click?</b> This cannot be undone — the only backup is the one you make.
+  </p>
+  <div class="danger-actions">
+    <button class="btn" type="button" id="reset-export">Export first</button>
+    <button class="btn btn-danger" type="button" id="reset-go">Delete everything</button>
+    <button class="danger-cancel" type="button" id="reset-cancel">Cancel</button>
+  </div>
+</div>
 
 <main>
 
@@ -109,29 +127,22 @@
 </nav>
 
 <!-- ══ Milestone nudge ═══════════════════════════════════════
-     ⚠  THE DONATION LINKS LIVE HERE — swap REPLACE-WITH-PAYPAL-USERNAME for
-        your PayPal.Me handle in all three href="" values. Nothing else to do:
-        PayPal.Me takes the amount straight in the path, so no backend and no
-        API keys.
+     The tip link is the only configuration. While it still says REPLACE-WITH
+     the popup stays switched off, so a half-configured build never shows
+     anyone a dead donate button.
 
-        Enable the handle once at paypal.me, then these become e.g.
-        https://paypal.me/urirotem/5USD
-
-        While any link still says REPLACE-WITH, the whole popup stays switched
-        off — a half-configured build never shows anyone a dead donate button.
+     One action rather than three: Ko-fi chooses the amount on its own page,
+     so three dots labelled $1/$5/$10 would all land on the same picker and
+     promise something the link cannot keep. The three dots stay as the mark.
      ══════════════════════════════════════════════════════════ -->
 <dialog class="nudge" id="nudge" aria-labelledby="nudge-title">
   <h2 class="nudge-title" id="nudge-title">100 clicks. So much data.</h2>
   <p class="nudge-body">If you want to make the developer proud, you can throw a coin in.</p>
 
-  <div class="nudge-dots">
-    <a class="nudge-dot nudge-1" data-give="1"  target="_blank" rel="noopener noreferrer"
-       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/1USD">$1</a>
-    <a class="nudge-dot nudge-2" data-give="5"  target="_blank" rel="noopener noreferrer"
-       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/5USD">$5</a>
-    <a class="nudge-dot nudge-3" data-give="10" target="_blank" rel="noopener noreferrer"
-       href="https://paypal.me/REPLACE-WITH-PAYPAL-USERNAME/10USD">$10</a>
-  </div>
+  <div class="nudge-mark" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <a class="nudge-give" id="nudge-give" target="_blank" rel="noopener noreferrer"
+     href="https://ko-fi.com/countthedots">Leave a tip →</a>
 
   <div class="nudge-actions">
     <button class="nudge-link" type="button" id="nudge-later">Nudge me at 200</button>

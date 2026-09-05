@@ -16,6 +16,7 @@
   --radius:       14px;
   --shadow:       0 1px 2px rgba(11,11,11,0.05), 0 8px 24px rgba(11,11,11,0.04);
   --dot-shadow:  0 3px 10px rgba(11,11,11,0.10);
+  --critical:     #c62f2f;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -34,6 +35,7 @@
     --series-3:   #ef5a4d;
     --shadow:     0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.35);
     --dot-shadow:  0 3px 12px rgba(0,0,0,0.5);
+    --critical:   #f0776b;
   }
 }
 :root[data-theme="dark"] {
@@ -52,6 +54,7 @@
   --series-3:   #ef5a4d;
   --shadow:     0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.35);
   --dot-shadow:  0 3px 12px rgba(0,0,0,0.5);
+  --critical:   #f0776b;
 }
 
 * { box-sizing: border-box; }
@@ -328,20 +331,24 @@ main {
 .nudge-body { margin: 0 0 22px; font-size: .875rem; line-height: 1.5; color: var(--ink-2); }
 
 /* The amounts sit on the app's own dots — same three colours, same shape */
-.nudge-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 20px; }
-.nudge-dot {
-  flex: 0 0 auto; width: 76px; height: 76px; border-radius: 50%;
-  display: grid; place-items: center; text-decoration: none;
-  font-size: 1.125rem; font-weight: 680; color: #fff;
-  box-shadow: var(--dot-shadow);
+/* Ko-fi picks the amount on its own page, so the dots are the mark here,
+   not the controls — three buttons promising $1/$5/$10 would all land on the
+   same picker. */
+.nudge-mark { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+.nudge-mark i { width: 15px; height: 15px; border-radius: 50%; }
+.nudge-mark i:nth-child(1) { background: var(--series-1); }
+.nudge-mark i:nth-child(2) { background: var(--series-2); }
+.nudge-mark i:nth-child(3) { background: var(--series-3); }
+
+.nudge-give {
+  display: block; margin: 0 0 20px; padding: 13px 22px;
+  border-radius: 999px; text-decoration: none;
+  background: var(--ink); color: var(--plane);
+  font-size: .9375rem; font-weight: 650;
   transition: transform .08s ease, filter .12s ease;
 }
-.nudge-dot:hover { filter: brightness(1.06); transform: translateY(-2px); }
-.nudge-dot:active { transform: translateY(0) scale(.96); }
-.nudge-1 { background: var(--series-1); }
-.nudge-3 { background: var(--series-3); }
-/* White on yellow fails contrast; this is the one dot that needs dark ink */
-.nudge-2 { background: var(--series-2); color: #241a00; }
+.nudge-give:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.nudge-give:active { transform: translateY(0); }
 
 .nudge-actions {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px;
@@ -355,5 +362,33 @@ main {
 .nudge-link:hover { color: var(--ink-2); }
 
 @media (prefers-reduced-motion: reduce) {
-  .nudge-dot { transition: none; }
+  .nudge-give { transition: none; }
 }
+
+/* ── Destructive-action strip ───────────────────────────────
+   Deleting the log is the one thing in this app that cannot be undone, so it
+   takes two deliberate presses with the export offered in between. */
+.danger {
+  flex: none; width: 100%; max-width: 720px; margin: 0 auto 4px;
+  padding: 13px max(14px, env(safe-area-inset-left));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  background: color-mix(in srgb, var(--critical) 11%, var(--plane));
+  border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
+  border-radius: var(--radius);
+}
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .danger { background: var(--wash); border-color: var(--critical); }
+}
+.danger-msg { margin: 0; flex: 1 1 15em; font-size: .8125rem; line-height: 1.45; color: var(--ink-2); }
+.danger-msg b { color: var(--ink); font-weight: 650; }
+.danger-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.btn-danger {
+  color: #fff; background: var(--critical); border-color: transparent; font-weight: 600;
+}
+.btn-danger:hover { color: #fff; background: var(--critical); filter: brightness(1.08); }
+.danger-cancel {
+  font: inherit; font-size: .8125rem; color: var(--ink-2);
+  background: none; border: 0; padding: 8px 4px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.danger-cancel:hover { color: var(--ink); }

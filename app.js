@@ -458,6 +458,8 @@
 
     const label = range === 'today' ? 'today' : range === 'all' ? 'all time' : `last ${range} days`;
     $('undo').disabled = !clicks.length;
+    $('reset').disabled = !clicks.length;
+    if (!clicks.length && !resetBar.hidden) resetBar.hidden = true;
 
     const info = drawChart(data, d);
 
@@ -579,7 +581,7 @@
     reader.readAsText(file);
   });
 
-  $('export').addEventListener('click', () => {
+  function exportJSON() {
     const blob = new Blob([JSON.stringify(clicks, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -590,7 +592,9 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  });
+  }
+
+  $('export').addEventListener('click', exportJSON);
 
   /* ── Tabs ──────────────────────────────────────────────── */
   const tabs = [...document.querySelectorAll('.tabbtn')];
@@ -622,6 +626,32 @@
     });
   });
 
+  /* ── Delete everything ─────────────────────────────────────
+     The one irreversible thing in the app, so it costs two deliberate presses
+     and offers the export in between rather than merely mentioning it. */
+  const resetBar = $('reset-bar');
+
+  function showReset(on) {
+    resetBar.hidden = !on;
+    $('reset').setAttribute('aria-expanded', String(on));
+    (on ? $('reset-cancel') : $('reset')).focus();
+  }
+
+  $('reset').addEventListener('click', () => showReset(resetBar.hidden));
+  $('reset-cancel').addEventListener('click', () => showReset(false));
+  $('reset-export').addEventListener('click', exportJSON);
+  $('reset-go').addEventListener('click', () => {
+    const n = clicks.length;
+    clicks = [];
+    active = null;
+    activeRow = 0;
+    pinned = false;
+    save();
+    render();
+    showReset(false);
+    toast(`Deleted ${plural(n, 'click')}`);
+  });
+
   /* ── Milestone nudge ───────────────────────────────────────
      Every NUDGE_STEP clicks, once, ask for a coin. Only ever triggered by a
      real tap — never by an import, which could cross several milestones at
@@ -634,9 +664,8 @@
 
   // While any amount is still a placeholder the whole feature stays off, so a
   // half-configured build never shows anyone a dead donate button.
-  const giveLinks = [...nudge.querySelectorAll('.nudge-dot')];
-  const nudgeArmed = giveLinks.length > 0
-    && giveLinks.every(a => !a.getAttribute('href').includes('REPLACE-WITH'));
+  const giveLink = $('nudge-give');
+  const nudgeArmed = !giveLink.getAttribute('href').includes('REPLACE-WITH');
 
   const LINES = [
     n => `${n} clicks. So much data.`,
@@ -677,11 +706,9 @@
     try { nudge.showModal(); } catch { return; }   // no dialog support: skip silently
   }
 
-  for (const a of giveLinks) {
-    // We cannot know whether the payment completed — no server to tell us. A tap
-    // on an amount is the most we can observe, and it is enough to stop asking.
-    a.addEventListener('click', () => closeNudge('never'));
-  }
+  // We cannot know whether the payment completed — no server to tell us. A tap
+  // on the link is the most we can observe, and it is enough to stop asking.
+  giveLink.addEventListener('click', () => closeNudge('never'));
   $('nudge-later').addEventListener('click', () => closeNudge('later'));
   $('nudge-never').addEventListener('click', () => closeNudge('never'));
   // Escape counts as "later" — the least destructive reading of a dismissal
@@ -715,7 +742,10 @@
 
   /* ── Keyboard: 1 / 2 / 3 ───────────────────────────────── */
   document.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape') return clearActive();
+    if (ev.key === 'Escape') {
+      if (!resetBar.hidden) return showReset(false);
+      return clearActive();
+    }
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     if (['1', '2', '3'].includes(ev.key)) { add(Number(ev.key)); ev.preventDefault(); }
