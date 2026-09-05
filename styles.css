@@ -101,14 +101,20 @@ main {
 .topbar-actions { display: flex; gap: 8px; flex: none; }
 
 /* ── Tap pad ────────────────────────────────────────────────── */
+/* Three dots, since that is the name of the app. On any phone a third of the
+   pad's height is smaller than its width, so height is the binding constraint:
+   flex sizes the circles vertically, aspect-ratio derives the width, and they
+   centre in whatever horizontal room is left over. */
 .pad {
   flex: 1 1 auto; min-height: 0;
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 4px 0 2px;
 }
 .tap {
   position: relative;
   flex: 1 1 0; min-height: 0;
-  border: 0; border-radius: var(--radius);
+  aspect-ratio: 1; max-width: 100%;
+  border: 0; border-radius: 50%;
   color: #fff; cursor: pointer;
   font: inherit;
   box-shadow: var(--shadow);
@@ -129,7 +135,7 @@ main {
 .tap-2 { background: var(--series-2); color: #241a00; }
 .tap-2 .tap-count { background: rgba(255,255,255,0.38); }
 .tap-count {
-  position: absolute; top: 10px; right: 12px;
+  position: absolute; top: 17%; right: 17%;
   font-size: .8125rem; font-weight: 650; font-variant-numeric: tabular-nums;
   min-width: 2.4em; text-align: center;
   padding: 3px 9px; border-radius: 999px;
