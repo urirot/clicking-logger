@@ -1,0 +1,7 @@
+{
+  "Name": "click-timeline-oac",
+  "Description": "OAC for the click-timeline S3 origin",
+  "SigningProtocol": "sigv4",
+  "SigningBehavior": "always",
+  "OriginAccessControlOriginType": "s3"
+}
