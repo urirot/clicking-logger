@@ -94,6 +94,7 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Keys `1` `2` `3` | same, on a desktop keyboard — `1` blue, `2` yellow, `3` red |
 | Today / 7 / 30 / All | scopes the chart — opens on **7 days** |
 | Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
+| | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
 | ◐ | cycles theme: auto → light → dark |
 | Export JSON | back the log up, or move it to another device |
@@ -179,6 +180,12 @@ Hovering or tapping picks the nearest tap — aim is x-dominant, with the rail r
 breaking ties, so a finger on the red row picks a red tap — then **bands that tap's whole
 period** across the plot and drops a node on all three lines, so the tooltip's three
 counts are visibly the three lines. The subtitle carries the peak for the range.
+
+**Hover previews, a tap pins.** A pinned reading survives `pointerleave` and is not
+dragged around by subsequent hovering; tapping elsewhere on the chart re-pins, and
+tapping outside it — or pressing `Esc` — dismisses it. Pinning is what makes the chart
+usable on a phone at all: the browser fires `pointerleave` the instant the finger lifts,
+so an un-pinned reading vanishes before it can be read.
 
 On the 7- and 30-day ranges the subtitle also carries the change against the preceding
 window. That delta is **only** shown when the log actually covers the preceding

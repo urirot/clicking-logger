@@ -13,7 +13,8 @@
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
   let range = '7';        // a single day rarely shows whether anything changed
-  let active = null;            // id of the hovered click
+  let active = null;            // id of the click being read
+  let pinned = false;           // set by a tap/click: survives hover and pointerleave
 
   function load() {
     try {
@@ -386,19 +387,38 @@
     return bestD <= 90 ** 2 ? best : null;
   }
 
-  function onPoint(ev) {
+  function pick(ev) {
     const r = svg.getBoundingClientRect();
     const scale = (svg.viewBox.baseVal.width || r.width) / (r.width || 1);
-    const id = nearest((ev.clientX - r.left) * scale, (ev.clientY - r.top) * scale);
-    if (id !== active) { active = id; render(); }
+    return nearest((ev.clientX - r.left) * scale, (ev.clientY - r.top) * scale);
   }
 
-  svg.addEventListener('pointermove', onPoint);
-  svg.addEventListener('pointerdown', onPoint);
-  svg.addEventListener('pointerleave', () => { if (active) { active = null; render(); } });
-  document.addEventListener('pointerdown', ev => {
-    if (active && !svg.contains(ev.target)) { active = null; render(); }
+  function show(id, pin) {
+    pinned = pin;
+    if (id === active) return;
+    active = id;
+    render();
+  }
+
+  /* Hover previews; a tap pins. Without pinning, touch is unusable: the browser
+     fires pointerleave the moment the finger lifts, so the reading vanishes
+     before it can be read. A pinned reading is dismissed by tapping away. */
+  svg.addEventListener('pointermove', ev => { if (!pinned) show(pick(ev), false); });
+  svg.addEventListener('pointerdown', ev => {
+    const id = pick(ev);
+    show(id, id !== null);      // tapping empty chart just clears
   });
+  svg.addEventListener('pointerleave', () => { if (!pinned && active) clearActive(); });
+  document.addEventListener('pointerdown', ev => {
+    if (active && !svg.contains(ev.target)) clearActive();
+  });
+
+  function clearActive() {
+    if (active === null && !pinned) return;
+    active = null;
+    pinned = false;
+    render();
+  }
 
   /* ── Render ────────────────────────────────────────────── */
   function render() {
@@ -473,6 +493,7 @@
       });
       range = chip.dataset.range;
       active = null;
+      pinned = false;
       render();
     });
   });
@@ -481,6 +502,7 @@
     if (!clicks.length) return toast('Nothing to undo');
     const c = clicks.pop();
     active = null;
+    pinned = false;
     save();
     render();
     toast(`Removed ${NAMES[c.b].toLowerCase()} at ${fSec.format(new Date(c.t))}`);
@@ -516,6 +538,7 @@
     for (const r of rows) clicks.push({ id: `${r.t}-${r.b}-i${seq++}`, t: r.t, b: r.b });
     clicks.sort((a, z) => a.t - z.t);
     active = null;
+    pinned = false;
     save();
     render();
     toast(`Imported ${plural(rows.length, 'click')} across ${plural(days.size, 'day')}`);
@@ -563,6 +586,7 @@
     }
     $('screen-title').textContent = btn.dataset.title;
     active = null;
+    pinned = false;
     document.querySelector('main').scrollTop = 0;
     render();   // the newly shown panel now has a real width
   }
@@ -607,6 +631,7 @@
 
   /* ── Keyboard: 1 / 2 / 3 ───────────────────────────────── */
   document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') return clearActive();
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     if (['1', '2', '3'].includes(ev.key)) { add(Number(ev.key)); ev.preventDefault(); }
