@@ -83,7 +83,9 @@ main { max-width: 720px; margin: 0 auto; }
   border: 1px solid var(--hairline); border-radius: 10px;
   cursor: pointer;
 }
-.icon-btn:hover { background: var(--wash); color: var(--ink); }
+.icon-btn:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.topbar-actions { display: flex; gap: 8px; flex: none; }
 
 /* ── Tap pad ────────────────────────────────────────────────── */
 .pad {
@@ -182,7 +184,6 @@ main { max-width: 720px; margin: 0 auto; }
 /* Readout nodes: where the three curves sit at the crosshair */
 #chart .read-dot { stroke: var(--surface); stroke-width: 1.5; }
 #chart .read-dot.is-active { stroke: var(--ink); stroke-width: 2; }
-#chart .y-unit { font-size: 9px; fill: var(--ink-muted); letter-spacing: .02em; }
 
 /* Event rail — every individual click, one row per button */
 #chart .rail-bg { fill: var(--wash); }
@@ -238,7 +239,6 @@ main { max-width: 720px; margin: 0 auto; }
   box-shadow: var(--shadow); z-index: 20;
 }
 
-.pad-caption { margin: 0 2px 16px; font-size: .6875rem; color: var(--ink-muted); }
 .legend-item b { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* ── Panels & tab bar ───────────────────────────────────────── */

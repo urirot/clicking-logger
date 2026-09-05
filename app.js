@@ -11,7 +11,7 @@
 
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
-  let range = 'today';
+  let range = '7';        // a single day rarely shows whether anything changed
   let active = null;            // id of the hovered click
 
   function load() {
@@ -179,7 +179,7 @@
     if (!w) return null;   // panel is hidden; activateTab() redraws when it is shown
     svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-    const m = { top: 22, right: 14, bottom: 24, left: 48 };   // top leaves room for the unit caption
+    const m = { top: 16, right: 14, bottom: 24, left: 48 };
     const iw = Math.max(w - m.left - m.right, 10);
     const ih = Math.max(h - m.top - m.bottom, 10);
     const x = t => m.left + ((t - t0) / (t1 - t0 || 1)) * iw;
@@ -223,10 +223,6 @@
       lab.textContent = fRate(v);
       svg.append(lab);
     }
-    const unitLab = el('text', { class: 'y-unit', x: m.left - 8, y: plotTop - 6, 'text-anchor': 'end' });
-    unitLab.textContent = `per ${unit.noun}`;
-    svg.append(unitLab);
-
     // Time grid
     const tickTarget = w < 380 ? 4 : w < 560 ? 5 : 7;
     for (const tk of ticks(t0, t1, tickTarget)) {
@@ -401,6 +397,8 @@
       : 'No clicks yet — tap a button.';
 
     const label = range === 'today' ? 'today' : range === 'all' ? 'all time' : `last ${range} days`;
+    $('undo').disabled = !clicks.length;
+
     const info = drawChart(data, d);
 
     const sub = [plural(data.length, 'click'), label];
@@ -452,6 +450,15 @@
       active = null;
       render();
     });
+  });
+
+  $('undo').addEventListener('click', () => {
+    if (!clicks.length) return toast('Nothing to undo');
+    const c = clicks.pop();
+    active = null;
+    save();
+    render();
+    toast(`Removed ${NAMES[c.b].toLowerCase()} at ${fSec.format(new Date(c.t))}`);
   });
 
   $('export').addEventListener('click', () => {

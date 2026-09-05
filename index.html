@@ -20,9 +20,14 @@
 
 <header class="topbar">
   <h1 id="screen-title">Tap</h1>
-  <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
-    <span aria-hidden="true" id="theme-glyph">◐</span>
-  </button>
+  <div class="topbar-actions">
+    <button id="undo" class="icon-btn" type="button" aria-label="Undo last click" title="Undo last click">
+      <span aria-hidden="true">↶</span>
+    </button>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
+      <span aria-hidden="true" id="theme-glyph">◐</span>
+    </button>
+  </div>
 </header>
 
 <main>
@@ -42,15 +47,14 @@
     </div>
 
     <p class="last-line" id="last-line" role="status" aria-live="polite">No clicks yet — tap a button.</p>
-    <p class="pad-caption">Each button is one colour; the badge counts today. Tap <b>Timeline</b> below to see every click plotted over time.</p>
   </section>
 
   <!-- ══ Screen 2 — the timeline ═══════════════════════ -->
   <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="-1" hidden>
 
     <div class="filters" role="group" aria-label="Time range">
-      <button class="chip is-selected" type="button" data-range="today" aria-pressed="true">Today</button>
-      <button class="chip" type="button" data-range="7" aria-pressed="false">7 days</button>
+      <button class="chip" type="button" data-range="today" aria-pressed="false">Today</button>
+      <button class="chip is-selected" type="button" data-range="7" aria-pressed="true">7 days</button>
       <button class="chip" type="button" data-range="30" aria-pressed="false">30 days</button>
       <button class="chip" type="button" data-range="all" aria-pressed="false">All</button>
     </div>
