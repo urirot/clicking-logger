@@ -1,4 +1,4 @@
-/* Click Timeline — records button taps and plots them on a time axis.
+/* Count the Dots — records button taps and plots them on a time axis.
    All state lives in localStorage; nothing is ever sent anywhere. */
 (() => {
   'use strict';

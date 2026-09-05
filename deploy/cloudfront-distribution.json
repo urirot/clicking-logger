@@ -1,6 +1,6 @@
 {
   "CallerReference": "click-timeline-1",
-  "Comment": "Click Timeline static app",
+  "Comment": "Count the Dots static app",
   "Enabled": true,
   "DefaultRootObject": "index.html",
   "PriceClass": "PriceClass_100",
