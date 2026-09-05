@@ -1,4 +1,4 @@
-# Click Timeline
+# Count the Dots
 
 A one-page app: tap **blue**, **yellow** or **red** to stamp the current time, then read the whole
 log off one picture — one line per colour through its click count per hour or day, over a

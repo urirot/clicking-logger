@@ -1,8 +1,8 @@
 {
-  "name": "click-timeline",
+  "name": "count-the-dots",
   "private": true,
   "version": "1.0.0",
-  "description": "Tap 1, 2 or 3 to stamp the time; see every tap on a timeline.",
+  "description": "Tap blue, yellow or red to stamp the time. See how many of each you got, per hour or per day.",
   "scripts": {
     "serve": "python3 -m http.server 8731",
     "test": "node tools/smoke-test.mjs",

@@ -1,7 +1,7 @@
 {
-  "name": "Click Timeline",
-  "short_name": "Clicks",
-  "description": "Tap 1, 2 or 3 to stamp the time. See every tap on a timeline.",
+  "name": "Count the Dots",
+  "short_name": "Dots",
+  "description": "Tap blue, yellow or red to stamp the time. See how many of each you got, per hour or per day.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
