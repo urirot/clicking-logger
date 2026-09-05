@@ -599,7 +599,6 @@
       t.tabIndex = on ? 0 : -1;
       $(t.dataset.panel).hidden = !on;
     }
-    $('screen-title').textContent = btn.dataset.title;
     active = null;
     activeRow = 0;
     pinned = false;

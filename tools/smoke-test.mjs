@@ -120,14 +120,15 @@ check($('chart-empty').hidden === true, 'empty notice hidden once data exists');
 check($('panel-tap').hidden === false, 'tap panel visible on load');
 check($('panel-data').hidden === true, 'timeline panel hidden on load');
 check(q('#tab-tap').getAttribute('aria-selected') === 'true', 'tap tab selected on load');
-check($('screen-title').textContent === 'Tap', `title "Tap", got "${$('screen-title').textContent}"`);
+check($('screen-title') === null, 'the header carries no screen title');
+check(q('.topbar h1.sr-only') !== null, 'but the page still has an h1 for structure');
 check(qa('#chart circle.dot').length === 0, 'chart is not drawn while its panel is hidden');
 
 const goto = id => q('#' + id).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 goto('tab-data');
 check($('panel-data').hidden === false, 'timeline panel visible after switching');
 check($('panel-tap').hidden === true, 'tap panel hidden after switching');
-check($('screen-title').textContent === 'Timeline', `title "Timeline", got "${$('screen-title').textContent}"`);
+check(q('#tab-data').getAttribute('aria-selected') === 'true', 'timeline tab marked selected');
 check(q('#tab-data').tabIndex === 0 && q('#tab-tap').tabIndex === -1, 'roving tabindex');
 
 // --- three rate curves, no fills, one rail tick per click

@@ -19,7 +19,7 @@
 <body>
 
 <header class="topbar">
-  <h1 id="screen-title">Tap</h1>
+  <h1 class="sr-only">Count the Dots</h1>
   <div class="topbar-actions">
     <button id="undo" class="icon-btn" type="button" aria-label="Undo last click" title="Undo last click">
       <span aria-hidden="true">↶</span>
@@ -99,11 +99,11 @@
 <!-- ══ Tab bar ═══════════════════════════════════════════════ -->
 <nav class="tabbar" role="tablist" aria-label="Screens">
   <button class="tabbtn is-active" type="button" role="tab" id="tab-tap"
-          aria-controls="panel-tap" aria-selected="true" data-panel="panel-tap" data-title="Tap">
+          aria-controls="panel-tap" aria-selected="true" data-panel="panel-tap">
     <span class="tabbtn-glyph" aria-hidden="true">⊙</span>Tap
   </button>
   <button class="tabbtn" type="button" role="tab" id="tab-data"
-          aria-controls="panel-data" aria-selected="false" tabindex="-1" data-panel="panel-data" data-title="Timeline">
+          aria-controls="panel-data" aria-selected="false" tabindex="-1" data-panel="panel-data">
     <span class="tabbtn-glyph" aria-hidden="true">⋯</span>Timeline
   </button>
 </nav>
