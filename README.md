@@ -20,7 +20,7 @@ What that means in practice:
 * **Data is tied to one origin on one device.** Clicks recorded on
   `https://main.abc123.amplifyapp.com` are not visible from a different URL or a
   different phone. Moving hosts or adding a custom domain starts a fresh log — use
-  **Export JSON** on the old URL and **Import JSON** on the new one.
+  **Export** on the old URL and **Import** on the new one.
 * **The installed home-screen app and the same site in a Chrome tab share the log** —
   same origin, same profile, same storage.
 * **It survives app restarts, reboots and going offline.** On first run the app calls
@@ -56,7 +56,7 @@ Note that GitHub Pages sites are *publicly reachable* even when the repo is priv
 (truly private Pages is a GitHub Enterprise Cloud feature). That's fine here: the URL
 serves the empty app to anyone who finds it, and your recorded times aren't in it.
 
-Use **Export JSON** for a backup before clearing browser data — clearing site data for
+Use **Export** for a backup before clearing browser data — clearing site data for
 the domain deletes the log.
 
 ## Deploying
@@ -97,8 +97,8 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
 | ◐ | cycles theme: auto → light → dark |
-| Export JSON | back the log up, or move it to another device |
-| Import JSON | merge a file back in — see **Import merges by day** below |
+| Export | back the log up, or move it to another device |
+| Import | merge a file back in — see **Import merges by day** below |
 | Data & backup | the export/import row collapses; the state is remembered |
 
 The buttons carry no numerals — the colour *is* the identity, and the badge on each one
