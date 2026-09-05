@@ -176,16 +176,25 @@ Under the lines, the **event rail** keeps the raw data visible: one row per colo
 at the bottom, so 1 → 3 reads upward), one tick per tap at its exact time. The lines
 answer "how many, and is it changing"; the rail answers "when, exactly".
 
-Hovering or tapping picks the nearest tap — aim is x-dominant, with the rail row only
-breaking ties, so a finger on the red row picks a red tap — then **bands that tap's whole
-period** across the plot and drops a node on all three lines, so the tooltip's three
-counts are visibly the three lines. The subtitle carries the peak for the range.
+Hovering or tapping **selects a period, not a tap**: whichever period is under the
+pointer's x is banded across the plot, every tap it counts lights up on the rail, and a
+node lands on all three lines so the tooltip's three counts are visibly the three lines.
+There is no proximity requirement — tapping a quiet stretch still answers "nothing that
+day", which is a real answer. Putting the pointer on a rail row additionally emphasises
+that colour's line in the tooltip. The subtitle carries the peak for the range.
 
 **Hover previews, a tap pins.** A pinned reading survives `pointerleave` and is not
 dragged around by subsequent hovering; tapping elsewhere on the chart re-pins, and
 tapping outside it — or pressing `Esc` — dismisses it. Pinning is what makes the chart
 usable on a phone at all: the browser fires `pointerleave` the instant the finger lifts,
 so an un-pinned reading vanishes before it can be read.
+
+The dismiss-on-outside-tap listener is registered in the **capture** phase, and must
+stay there. `render()` rebuilds the whole SVG, so by the bubble phase the node that was
+tapped has been detached and `svg.contains(target)` reports `false` for it — dismissing
+the very reading the tap was meant to pin. Tapping blank chart hides the bug, because
+there the target is the `<svg>` itself, which survives the rebuild; the smoke test
+therefore taps marks directly.
 
 On the 7- and 30-day ranges the subtitle also carries the change against the preceding
 window. That delta is **only** shown when the log actually covers the preceding

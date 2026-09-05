@@ -13,7 +13,8 @@
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
   let range = '7';        // a single day rarely shows whether anything changed
-  let active = null;            // id of the click being read
+  let active = null;            // start time of the period being read, or null
+  let activeRow = 0;            // 1..3 while the pointer is over that rail row, else 0
   let pinned = false;           // set by a tap/click: survives hover and pointerleave
 
   function load() {
@@ -123,8 +124,8 @@
      the number on the axis is a count you could arrive at by hand. The period
      follows the visible span, and the rail underneath keeps every individual
      tap visible at its exact time. */
-  let hits = [];          // { x, ry, c } — one entry per click
   let bins = [];          // the periods currently plotted
+  let geo = null;         // last render's geometry, for turning a point into a period
 
   const RAIL_H   = 42;    // event rail at the foot of the plot
   const RAIL_GAP = 14;    // breathing room between the lines and the rail
@@ -195,7 +196,6 @@
 
   function drawChart(data, [t0, t1]) {
     svg.textContent = '';
-    hits = [];
     bins = [];
     const empty = !data.length;
     $('chart-empty').hidden = !empty;
@@ -221,6 +221,18 @@
 
     const kind = periodOf(t1 - t0);
     bins = binize(data, [t0, t1], kind);
+
+    /* Hit-testing reads a period out of an x position — the tooltip describes a
+       period, so that is what a tap should select. Proximity to an individual
+       tap is not required: tapping a quiet stretch still answers "nothing that
+       day", which is a real answer. */
+    geo = {
+      inPlot: px => px >= m.left - 2 && px <= m.left + iw + 2,
+      timeAt: px => t0 + ((px - m.left) / (iw || 1)) * (t1 - t0),
+      rowAt: py => (py >= railTop - 4 && py <= railBottom + 4)
+        ? Math.min(3, Math.max(1, 3 - Math.floor((py - railTop) / (rowH || 1))))
+        : 0,
+    };
 
     let peak = 0;
     for (const bk of bins) for (const b of [1, 2, 3]) if (bk.n[b] > peak) peak = bk.n[b];
@@ -263,8 +275,7 @@
 
     // The period being read, banded across the plot so it is obvious which
     // slice of time the tooltip's numbers cover
-    const act = data.find(c => c.id === active);
-    const actBin = act && bins.find(bk => act.t >= bk.t && act.t < bk.end);
+    const actBin = active === null ? null : bins.find(bk => bk.t === active);
     if (actBin) {
       const sx = Math.max(x(actBin.t), m.left);
       const ex = Math.min(x(actBin.end), m.left + iw);
@@ -304,15 +315,14 @@
       svg.append(lab);
     }
 
-    for (const c of data) hits.push({ x: x(c.t), ry: railY(c.b), c });
-
+    // Every tap in the banded period is highlighted — they are what it counts
     const tickH = Math.max(rowH - 6, 4);
-    for (const p of hits) {
-      const on = p.c.id === active;
+    for (const c of data) {
+      const on = !!actBin && c.t >= actBin.t && c.t < actBin.end;
       const tw = on ? 5 : 3;
       svg.append(el('rect', {
-        class: 'rail-tick' + (on ? ' is-active' : ''), fill: SERIES[p.c.b],
-        x: p.x - tw / 2, y: p.ry - tickH / 2, width: tw, height: tickH, rx: tw / 2,
+        class: 'rail-tick' + (on ? ' is-active' : ''), fill: SERIES[c.b],
+        x: x(c.t) - tw / 2, y: railY(c.b) - tickH / 2, width: tw, height: tickH, rx: tw / 2,
       }));
     }
 
@@ -322,11 +332,11 @@
       for (const b of [1, 2, 3]) {
         if (!data.some(c => c.b === b)) continue;
         svg.append(el('circle', {
-          class: 'read-dot' + (b === act.b ? ' is-active' : ''),
-          cx: mid(actBin), cy: y(actBin.n[b]), r: b === act.b ? 5 : 3.5, fill: SERIES[b],
+          class: 'read-dot' + (b === activeRow ? ' is-active' : ''),
+          cx: mid(actBin), cy: y(actBin.n[b]), r: b === activeRow ? 5 : 3.5, fill: SERIES[b],
         }));
       }
-      showTooltip(actBin, act.b, plotTop, mid(actBin));
+      showTooltip(actBin, activeRow, plotTop, mid(actBin));
     } else {
       tooltip.hidden = true;
     }
@@ -374,29 +384,25 @@
   }
 
   /* ── Hover / tap ───────────────────────────────────────── */
-  function nearest(px, py) {
-    let best = null, bestD = Infinity;
-    for (const p of hits) {
-      const dx = p.x - px;
-      // Reading a rate is reading a time, so aim is x-dominant; the row only
-      // breaks ties, letting a finger on the red rail row pick a red tap.
-      const dy = Math.abs(p.ry - py);
-      const d = dx * dx + (dy * 0.3) ** 2;
-      if (d < bestD) { bestD = d; best = p.c.id; }
-    }
-    return bestD <= 90 ** 2 ? best : null;
-  }
-
   function pick(ev) {
+    if (!geo) return null;
     const r = svg.getBoundingClientRect();
     const scale = (svg.viewBox.baseVal.width || r.width) / (r.width || 1);
-    return nearest((ev.clientX - r.left) * scale, (ev.clientY - r.top) * scale);
+    const px = (ev.clientX - r.left) * scale;
+    const py = (ev.clientY - r.top) * scale;
+    if (!geo.inPlot(px)) return null;
+    const t = geo.timeAt(px);
+    const bk = bins.find(b => t >= b.t && t < b.end);
+    return bk ? { t: bk.t, row: geo.rowAt(py) } : null;
   }
 
-  function show(id, pin) {
+  function show(sel, pin) {
     pinned = pin;
-    if (id === active) return;
-    active = id;
+    const t = sel ? sel.t : null;
+    const row = sel ? sel.row : 0;
+    if (t === active && row === activeRow) return;
+    active = t;
+    activeRow = row;
     render();
   }
 
@@ -405,17 +411,23 @@
      before it can be read. A pinned reading is dismissed by tapping away. */
   svg.addEventListener('pointermove', ev => { if (!pinned) show(pick(ev), false); });
   svg.addEventListener('pointerdown', ev => {
-    const id = pick(ev);
-    show(id, id !== null);      // tapping empty chart just clears
+    const sel = pick(ev);
+    show(sel, sel !== null);    // tapping outside the plot just clears
   });
   svg.addEventListener('pointerleave', () => { if (!pinned && active) clearActive(); });
+  /* Capture phase, deliberately: the chart's own handler re-renders, which
+     detaches the very node that was tapped, and by the bubble phase
+     svg.contains(target) is false for it — dismissing the reading the tap was
+     meant to pin. Tapping blank chart hid the bug, because there the target is
+     the <svg> itself, which survives the rebuild. */
   document.addEventListener('pointerdown', ev => {
     if (active && !svg.contains(ev.target)) clearActive();
-  });
+  }, true);
 
   function clearActive() {
     if (active === null && !pinned) return;
     active = null;
+    activeRow = 0;
     pinned = false;
     render();
   }
@@ -493,6 +505,7 @@
       });
       range = chip.dataset.range;
       active = null;
+      activeRow = 0;
       pinned = false;
       render();
     });
@@ -502,6 +515,7 @@
     if (!clicks.length) return toast('Nothing to undo');
     const c = clicks.pop();
     active = null;
+    activeRow = 0;
     pinned = false;
     save();
     render();
@@ -538,6 +552,7 @@
     for (const r of rows) clicks.push({ id: `${r.t}-${r.b}-i${seq++}`, t: r.t, b: r.b });
     clicks.sort((a, z) => a.t - z.t);
     active = null;
+    activeRow = 0;
     pinned = false;
     save();
     render();
@@ -586,6 +601,7 @@
     }
     $('screen-title').textContent = btn.dataset.title;
     active = null;
+    activeRow = 0;
     pinned = false;
     document.querySelector('main').scrollTop = 0;
     render();   // the newly shown panel now has a real width
