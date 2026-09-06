@@ -369,8 +369,8 @@ main {
    Deleting the log is the one thing in this app that cannot be undone, so it
    takes two deliberate presses with the export offered in between. */
 .danger {
-  flex: none; width: 100%; max-width: 720px; margin: 0 auto 4px;
-  padding: 13px max(14px, env(safe-area-inset-left));
+  margin: 12px 0 2px;
+  padding: 13px 14px;
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
   background: color-mix(in srgb, var(--critical) 11%, var(--plane));
   border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
@@ -382,6 +382,11 @@ main {
 .danger-msg { margin: 0; flex: 1 1 15em; font-size: .8125rem; line-height: 1.45; color: var(--ink-2); }
 .danger-msg b { color: var(--ink); font-weight: 650; }
 .danger-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Quiet trigger, loud confirm: the button that opens the warning must not look
+   like the button that carries it out. */
+.btn-warn { color: var(--critical); }
+.btn-warn:hover:not(:disabled) { color: var(--critical); border-color: var(--critical); }
+.btn:disabled { opacity: .4; cursor: default; }
 .btn-danger {
   color: #fff; background: var(--critical); border-color: transparent; font-weight: 600;
 }

@@ -74,8 +74,11 @@ check($('log') === null && $('log-body') === null, 'the log table is gone');
 for (const id of ['clear', 'mode-clicks', 'mode-buckets']) {
   check($(id) === null, `#${id} should be gone`);
 }
-check(qa('#panel-data .actions .btn').length === 2, 'export and import are the action buttons');
+check(qa('#panel-data .actions .btn').length === 3, 'export, import and delete are the action buttons');
 check($('export') !== null && $('import') !== null, 'export and import both present');
+check(q('#data-drawer #reset') !== null, 'delete-all lives inside the collapsible drawer');
+check(q('#data-drawer #reset-bar') !== null, 'and so does its warning');
+check(q('.topbar #reset') === null, 'nothing destructive sits permanently in the top bar');
 check(q('#data-drawer .actions') !== null && q('#data-drawer .footnote') !== null,
   'the buttons and the footnote live inside the collapsible drawer');
 check($('data-drawer').open === false, 'the drawer starts collapsed');
@@ -528,7 +531,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   const fire = id => g(id).dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   const stored = () => JSON.parse(w.localStorage.getItem('click-timeline/v1')).length;
 
-  check(g('reset') !== null, 'a reset button sits in the top bar');
+  check(g('reset') !== null, 'the delete-all button exists');
   check(g('reset-bar').hidden === true, 'the warning is hidden until asked for');
 
   fire('reset');
@@ -536,7 +539,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   check(stored() === 2, 'and deletes nothing on its own');
   const msg = g('reset-msg').textContent;
   check(/cannot be undone/i.test(msg), `the warning says it is irreversible: "${msg.trim()}"`);
-  check(g('reset-export') !== null, 'and offers the export right there, not just a mention of it');
+  check(/export/i.test(msg), `and points at the export, which is beside it: "${msg.trim()}"`);
 
   fire('reset-cancel');
   check(g('reset-bar').hidden === true, 'cancel closes it');
@@ -557,6 +560,24 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     check(w2.document.getElementById('reset-bar').hidden === true, 'Escape closes the warning');
     check(JSON.parse(w2.localStorage.getItem('click-timeline/v1')).length === 2, 'and keeps the log');
   }
+}
+
+
+{ // collapsing the drawer takes the open warning with it
+  const w = boot([{ id: 'z', t: Date.now(), b: 1 }]);
+  const g = id => w.document.getElementById(id);
+  const tick = () => new Promise(r => setTimeout(r, 0));
+  const toggleDrawer = () => w.document.querySelector('#data-drawer > summary')
+    .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+
+  toggleDrawer(); await tick();                       // it starts collapsed
+  check(g('data-drawer').open === true, 'drawer opened');
+  g('reset').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  check(g('reset-bar').hidden === false, 'warning open');
+
+  toggleDrawer(); await tick();
+  check(g('data-drawer').open === false, 'drawer collapsed');
+  check(g('reset-bar').hidden === true, 'closing the drawer closes the warning with it');
 }
 
 console.log(errors.length ? errors.join('\n') : '✓ all smoke checks passed');

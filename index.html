@@ -24,29 +24,11 @@
     <button id="undo" class="icon-btn" type="button" aria-label="Undo last click" title="Undo last click">
       <span aria-hidden="true">↶</span>
     </button>
-    <button id="reset" class="icon-btn" type="button" aria-label="Delete all clicks"
-            title="Delete all clicks" aria-expanded="false" aria-controls="reset-bar">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 6h16M9 6V4h6v2M7 6l1 14h8l1-14"/>
-      </svg>
-    </button>
     <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch theme" title="Switch theme">
       <span aria-hidden="true" id="theme-glyph">◐</span>
     </button>
   </div>
 </header>
-
-<div class="danger" id="reset-bar" role="alertdialog" aria-labelledby="reset-msg" hidden>
-  <p class="danger-msg" id="reset-msg">
-    <b>Delete every click?</b> This cannot be undone — the only backup is the one you make.
-  </p>
-  <div class="danger-actions">
-    <button class="btn" type="button" id="reset-export">Export first</button>
-    <button class="btn btn-danger" type="button" id="reset-go">Delete everything</button>
-    <button class="danger-cancel" type="button" id="reset-cancel">Cancel</button>
-  </div>
-</div>
 
 <main>
 
@@ -102,8 +84,21 @@
       <section class="actions" aria-label="Data">
         <button class="btn" type="button" id="export">Export</button>
         <button class="btn" type="button" id="import">Import</button>
+        <button class="btn btn-warn" type="button" id="reset"
+                aria-expanded="false" aria-controls="reset-bar">Delete all</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </section>
+
+      <div class="danger" id="reset-bar" role="alertdialog" aria-labelledby="reset-msg" hidden>
+        <p class="danger-msg" id="reset-msg">
+          <b>Delete every click?</b> This cannot be undone, and the only backup is the one
+          you make — <b>Export</b> is right there above.
+        </p>
+        <div class="danger-actions">
+          <button class="btn btn-danger" type="button" id="reset-go">Delete everything</button>
+          <button class="danger-cancel" type="button" id="reset-cancel">Cancel</button>
+        </div>
+      </div>
       <p class="footnote">
         Everything is stored only in this browser (<code>localStorage</code>) — no server, no account.
         Export a JSON backup before clearing site data. Import replaces every day the file

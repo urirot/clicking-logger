@@ -459,7 +459,7 @@
     const label = range === 'today' ? 'today' : range === 'all' ? 'all time' : `last ${range} days`;
     $('undo').disabled = !clicks.length;
     $('reset').disabled = !clicks.length;
-    if (!clicks.length && !resetBar.hidden) resetBar.hidden = true;
+    if (!clicks.length && !resetBar.hidden) showReset(false, false);
 
     const info = drawChart(data, d);
 
@@ -610,6 +610,7 @@
     active = null;
     activeRow = 0;
     pinned = false;
+    showReset(false, false);
     document.querySelector('main').scrollTop = 0;
     render();   // the newly shown panel now has a real width
   }
@@ -631,15 +632,16 @@
      and offers the export in between rather than merely mentioning it. */
   const resetBar = $('reset-bar');
 
-  function showReset(on) {
+  // refocus only when the user closed it themselves; collapsing the drawer or
+  // switching screens should not yank focus back to a control they left behind
+  function showReset(on, refocus = true) {
     resetBar.hidden = !on;
     $('reset').setAttribute('aria-expanded', String(on));
-    (on ? $('reset-cancel') : $('reset')).focus();
+    if (refocus) (on ? $('reset-cancel') : $('reset')).focus();
   }
 
   $('reset').addEventListener('click', () => showReset(resetBar.hidden));
   $('reset-cancel').addEventListener('click', () => showReset(false));
-  $('reset-export').addEventListener('click', exportJSON);
   $('reset-go').addEventListener('click', () => {
     const n = clicks.length;
     clicks = [];
@@ -719,6 +721,7 @@
   try { drawer.open = localStorage.getItem(DRAWER_KEY) === '1'; } catch {}
   drawer.addEventListener('toggle', () => {
     try { localStorage.setItem(DRAWER_KEY, drawer.open ? '1' : '0'); } catch {}
+    if (!drawer.open) showReset(false, false);
   });
 
   /* ── Theme ─────────────────────────────────────────────── */

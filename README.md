@@ -76,14 +76,19 @@ one thing this app refuses to have:
 
 ## Deleting everything
 
-The reset button in the top bar does not delete anything. It opens a strip that
-says the deletion cannot be undone and puts **Export first** next to **Delete
-everything**, so the backup is one press away at the moment it matters rather
-than a sentence somebody has already scrolled past. Cancel and Escape both back
-out; the button greys itself out when there is nothing left to delete.
+**Delete all** lives inside the collapsed **Data & backup** drawer, beside Export
+and Import — a rare, irreversible action has no business sitting on screen all
+day. It deletes nothing on its own: pressing it opens a warning saying the
+action cannot be undone, with Export one button away at the moment that matters
+rather than a sentence somebody has already scrolled past.
 
-Two friends asked for this independently, which is a better signal than one
-person's taste — including the author's, who did not want another button.
+Quiet trigger, loud confirm — the button that opens the warning is outlined, the
+one that carries it out is filled. Cancel and Escape both back out, collapsing
+the drawer or switching screens closes it too, and it disables itself when there
+is nothing left to delete.
+
+Two friends asked for the feature independently, which is a better signal than
+one person's taste — including the author's, who did not want another button.
 
 ## Privacy
 
@@ -135,7 +140,7 @@ On iOS: Safari → Share → **Add to Home Screen**.
 | Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
 | | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
 | ↶ | undo the last click — in the top bar, so it is reachable from the pad |
-| 🗑 | delete every click; a warning strip appears first, offering the export |
+| Delete all | inside **Data & backup**; a warning appears first, with Export beside it |
 | ◐ | cycles theme: auto → light → dark |
 | Export | back the log up, or move it to another device |
 | Import | merge a file back in — see **Import merges by day** below |
