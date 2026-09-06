@@ -1,11 +1,87 @@
-# Count the Dots
+<p align="center">
+  <img src="icon-192.png" width="76" height="76" alt="">
+</p>
 
-A one-page app: tap **blue**, **yellow** or **red** to stamp the current time, then read the whole
-log off one picture — one line per colour through its click count per hour or day, over a
-rail that keeps every individual tap visible as its own tick.
+<h1 align="center">Count the Dots</h1>
 
-Built as an offline-capable PWA so it installs to an Android/iOS home screen and works
-with no signal.
+<p align="center">
+  <strong>A free tally counter for anything you can be bothered to count.</strong><br>
+  Three buttons — blue, yellow, red — stamp the time when you tap them.<br>
+  A chart shows how many of each, per hour or per day.
+</p>
+
+<p align="center">
+  <a href="https://app.countthedots.click"><strong>Open the app →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://countthedots.click">countthedots.click</a>
+</p>
+
+<p align="center">
+  <img src="screenshot-tap.png" width="270" alt="The tap screen: three large dots in blue, yellow and red, each with today's count beside it.">
+  &nbsp;&nbsp;
+  <img src="screenshot-timeline.png" width="270" alt="The timeline screen: three lines showing clicks per day, above a strip marking every individual tap.">
+</p>
+
+---
+
+**Free · No account · Works offline · Nothing leaves your device**
+
+Add it to your home screen and it behaves like an app with no signal at all. There
+is no server, no sync and no analytics inside it: every click lives in your own
+browser's `localStorage`, on the device that recorded it.
+
+## What people count
+
+| | |
+|---|---|
+| ☕ **Coffee** | Blue: morning. Yellow: the one you called decaf. Red: after bedtime. |
+| 📉 **Habits you are cutting down** | No streaks, no badges, nothing calling you a quitter. |
+| 🩺 **Pain, 1 to 3** | Blue mild, yellow bad, red worse — all day, in order. Beats telling a doctor "a lot, I think? Mostly evenings?" |
+| 🐦 **Birds, trains, passing cars** | Field notes for people who enjoy counting things at other things. |
+| 🙋 **Interruptions** | Count for a week. Then show the chart to whoever caused them. |
+
+## Using it
+
+| | |
+|---|---|
+| Tap a colour | records a click at the current time |
+| Keys `1` `2` `3` | same, on a desktop keyboard — `1` blue, `2` yellow, `3` red |
+| Today / 7 / 30 / All | scopes the chart — opens on **7 days** |
+| Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
+| | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
+| ↶ | undo the last click — in the top bar, so it is reachable from the pad |
+| Delete all | inside **Data & backup**; a warning appears first, with Export beside it |
+| ◐ | cycles theme: auto → light → dark |
+| Export | back the log up, or move it to another device |
+| Import | merge a file back in — see **Import merges by day** below |
+| Data & backup | the export/import row collapses; the state is remembered |
+
+The buttons carry no numerals — the colour *is* the identity, and the badge on each one
+counts **today**. The range chips scope the chart. The Timeline screen is the chart and
+an export/import pair, nothing else: no log table, no clear. Undo lives in the
+top bar instead, next to the theme toggle, so a mistaken tap can be dropped without
+leaving the pad; it greys out when the log is empty.
+
+## Privacy
+
+**Your click data never leaves your device.** It lives in the browser's `localStorage`
+on the phone you tap on — there is no server, no database, no account, no analytics.
+The published page is just static HTML/CSS/JS.
+
+Note that GitHub Pages sites are *publicly reachable* even when the repo is private
+(truly private Pages is a GitHub Enterprise Cloud feature). That's fine here: the URL
+serves the empty app to anyone who finds it, and your recorded times aren't in it.
+
+Use **Export** for a backup before clearing browser data — clearing site data for
+the domain deletes the log.
+
+## Install on Android
+
+1. Open the Pages URL in Chrome.
+2. ⋮ menu → **Add to Home screen** (Chrome may offer **Install app** instead).
+3. Launch from the icon — it opens standalone, no browser chrome.
+
+On iOS: Safari → Share → **Add to Home Screen**.
 
 ## How clicks are stored
 
@@ -46,6 +122,22 @@ Malformed entries are skipped; a click needs a finite `t` and a `b` of 1, 2 or 3
 Imported clicks are given fresh ids, so a file exported from another device can never
 collide with what is already here.
 
+## Deleting everything
+
+**Delete all** lives inside the collapsed **Data & backup** drawer, beside Export
+and Import — a rare, irreversible action has no business sitting on screen all
+day. It deletes nothing on its own: pressing it opens a warning saying the
+action cannot be undone, with Export one button away at the moment that matters
+rather than a sentence somebody has already scrolled past.
+
+Quiet trigger, loud confirm — the button that opens the warning is outlined, the
+one that carries it out is filled. Cancel and Escape both back out, collapsing
+the drawer or switching screens closes it too, and it disables itself when there
+is nothing left to delete.
+
+Two friends asked for the feature independently, which is a better signal than
+one person's taste — including the author's, who did not want another button.
+
 ## The milestone nudge
 
 Every 100 clicks, once, the app asks for a coin: a small dialog titled with the
@@ -73,132 +165,6 @@ one thing this app refuses to have:
   the nudge comes back.
 * **Only a real tap triggers it.** An import can cross several milestones at
   once, and ambushing someone who just restored a backup would be rude.
-
-## Deleting everything
-
-**Delete all** lives inside the collapsed **Data & backup** drawer, beside Export
-and Import — a rare, irreversible action has no business sitting on screen all
-day. It deletes nothing on its own: pressing it opens a warning saying the
-action cannot be undone, with Export one button away at the moment that matters
-rather than a sentence somebody has already scrolled past.
-
-Quiet trigger, loud confirm — the button that opens the warning is outlined, the
-one that carries it out is filled. Cancel and Escape both back out, collapsing
-the drawer or switching screens closes it too, and it disables itself when there
-is nothing left to delete.
-
-Two friends asked for the feature independently, which is a better signal than
-one person's taste — including the author's, who did not want another button.
-
-## Privacy
-
-**Your click data never leaves your device.** It lives in the browser's `localStorage`
-on the phone you tap on — there is no server, no database, no account, no analytics.
-The published page is just static HTML/CSS/JS.
-
-Note that GitHub Pages sites are *publicly reachable* even when the repo is private
-(truly private Pages is a GitHub Enterprise Cloud feature). That's fine here: the URL
-serves the empty app to anyone who finds it, and your recorded times aren't in it.
-
-Use **Export** for a backup before clearing browser data — clearing site data for
-the domain deletes the log.
-
-## Deploying
-
-Any static host works — the app is 7 files and makes no network calls. Configs and a
-runbook for each route are in **[`deploy/README.md`](deploy/README.md)**.
-
-**The page must be served over HTTPS** to install on a home screen: Chrome won't
-register a service worker or offer "Install app" over plain HTTP.
-
-| Route | HTTPS | Deploy |
-|---|---|---|
-| Firebase Hosting | ✅ | `firebase deploy --only hosting` |
-| AWS Amplify Hosting | ✅ | `./deploy/deploy-amplify.sh` |
-| S3 + CloudFront | ✅ | `BUCKET=… DISTRIBUTION_ID=… ./deploy/deploy-s3.sh` |
-| GitHub Pages | ✅ | push, then enable Pages (`.nojekyll` is in place) |
-| S3 website endpoint | ❌ | `BUCKET=… REGION=… ./deploy/create-website-bucket.sh` |
-
-Whatever the host, **bump `CACHE` in `sw.js` when you change a file** — installed
-phones keep serving the old build otherwise.
-
-## Install on Android
-
-1. Open the Pages URL in Chrome.
-2. ⋮ menu → **Add to Home screen** (Chrome may offer **Install app** instead).
-3. Launch from the icon — it opens standalone, no browser chrome.
-
-On iOS: Safari → Share → **Add to Home Screen**.
-
-## Using it
-
-| | |
-|---|---|
-| Tap a colour | records a click at the current time |
-| Keys `1` `2` `3` | same, on a desktop keyboard — `1` blue, `2` yellow, `3` red |
-| Today / 7 / 30 / All | scopes the chart — opens on **7 days** |
-| Hover or tap the chart | bands the period around the nearest tap and gives all three colours' counts for it |
-| | a **tap pins** that reading — dismiss it by tapping outside the chart, or `Esc` |
-| ↶ | undo the last click — in the top bar, so it is reachable from the pad |
-| Delete all | inside **Data & backup**; a warning appears first, with Export beside it |
-| ◐ | cycles theme: auto → light → dark |
-| Export | back the log up, or move it to another device |
-| Import | merge a file back in — see **Import merges by day** below |
-| Data & backup | the export/import row collapses; the state is remembered |
-
-The buttons carry no numerals — the colour *is* the identity, and the badge on each one
-counts **today**. The range chips scope the chart. The Timeline screen is the chart and
-an export/import pair, nothing else: no log table, no clear. Undo lives in the
-top bar instead, next to the theme toggle, so a mistaken tap can be dropped without
-leaving the pad; it greys out when the log is empty.
-
-## Layout
-
-The app is one fixed-height flex column — top bar, a single scroll region (`<main>`),
-tab bar — rather than a long page with a floating tab bar over it. The tap screen sizes
-itself to that region and so **never scrolls at any viewport height**; the buttons shrink
-instead. Only the timeline scrolls, and only inside `<main>`.
-
-One trap that follows: `#panel-tap` sets `display: flex`, and an id selector outranks the
-UA's `[hidden] { display: none }`, so a hidden panel stays painted. `styles.css` carries
-an explicit `[hidden] { display: none !important }` reset for that, and the smoke test
-asserts it is still there — jsdom has no layout, so nothing else would catch it.
-
-## Files
-
-```
-index.html            markup
-styles.css            tokens + layout (light/dark, both OS setting and manual toggle)
-app.js                storage, SVG chart, export
-manifest.webmanifest  PWA metadata
-sw.js                 service worker — network-first, cache fallback
-icon-192/512.png      three palette dots, generated by tools/make_icons.py (no image deps)
-tools/smoke-test.mjs  jsdom smoke test (npm test)
-firebase.json         Firebase Hosting config (builds dist/, sets cache headers)
-deploy/               Amplify + S3/CloudFront configs and deploy scripts
-tools/build-dist.sh   copies just the 7 shipping files into dist/
-```
-
-## Develop
-
-```sh
-npm run serve      # http://localhost:8731
-```
-
-Run the smoke test (~70 assertions over recording, curve geometry and the shared count
-scale, the event rail, filters, hover, persistence, export, theme):
-
-```sh
-npm install && npm test
-```
-
-Regenerate icons after changing the palette:
-
-```sh
-npm run icons
-```
-
-**When deploying a change, bump `CACHE` in `sw.js`** so installed clients pick it up.
 
 ## Chart notes
 
@@ -259,3 +225,51 @@ Identity is therefore never carried by colour alone: each rail row is labelled *
 **Yellow** / **Blue** in text, the legend names them beside its per-range counts, the
 tooltip names the tapped colour in words, and each pad button exposes its colour in its
 accessible name.
+
+## Layout
+
+The app is one fixed-height flex column — top bar, a single scroll region (`<main>`),
+tab bar — rather than a long page with a floating tab bar over it. The tap screen sizes
+itself to that region and so **never scrolls at any viewport height**; the buttons shrink
+instead. Only the timeline scrolls, and only inside `<main>`.
+
+One trap that follows: `#panel-tap` sets `display: flex`, and an id selector outranks the
+UA's `[hidden] { display: none }`, so a hidden panel stays painted. `styles.css` carries
+an explicit `[hidden] { display: none !important }` reset for that, and the smoke test
+asserts it is still there — jsdom has no layout, so nothing else would catch it.
+
+## Files
+
+```
+index.html            markup
+styles.css            tokens + layout (light/dark, both OS setting and manual toggle)
+app.js                storage, SVG chart, export
+manifest.webmanifest  PWA metadata
+sw.js                 service worker — network-first, cache fallback
+icon-192/512.png      three palette dots, generated by tools/make_icons.py (no image deps)
+tools/smoke-test.mjs  jsdom smoke test (npm test)
+firebase.json         Firebase Hosting config (builds dist/, sets cache headers)
+deploy/               Amplify + S3/CloudFront configs and deploy scripts
+tools/build-dist.sh   copies just the 7 shipping files into dist/
+```
+
+## Develop
+
+```sh
+npm run serve      # http://localhost:8731
+```
+
+Run the smoke test (~70 assertions over recording, curve geometry and the shared count
+scale, the event rail, filters, hover, persistence, export, theme):
+
+```sh
+npm install && npm test
+```
+
+Regenerate icons after changing the palette:
+
+```sh
+npm run icons
+```
+
+**When deploying a change, bump `CACHE` in `sw.js`** so installed clients pick it up.
