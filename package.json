@@ -6,7 +6,24 @@
   "scripts": {
     "serve": "python3 -m http.server 8731",
     "test": "node tools/smoke-test.mjs",
-    "icons": "python3 tools/make_icons.py"
+    "icons": "python3 tools/make_icons.py",
+    "build:native": "./tools/build-native.sh",
+    "sync": "./tools/build-native.sh && npx cap sync",
+    "ios": "./tools/build-native.sh && npx cap sync ios && npx cap open ios",
+    "android": "./tools/build-native.sh && npx cap sync android && npx cap open android"
   },
-  "devDependencies": { "jsdom": "^26.0.0" }
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "esbuild": "^0.28.2",
+    "jsdom": "^26.0.0"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.1",
+    "cordova-plugin-purchase": "^13.18.0"
+  }
 }

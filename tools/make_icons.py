@@ -59,5 +59,8 @@ def render(size, path):
     print(f'{path}  {size}x{size}  {len(png)} bytes')
 
 
-for s in (192, 512):
+# 192/512 ship in the web app; 1024 is the App Store / Play listing icon and the
+# source @capacitor/assets expands into every platform size. Colour type 2 (no
+# alpha) throughout, which is what Apple requires of the store icon.
+for s in (192, 512, 1024):
     render(s, f'icon-{s}.png')

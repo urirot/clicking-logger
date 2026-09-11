@@ -1,0 +1,8 @@
+{
+  "appId": "click.countthedots.app",
+  "appName": "Count the Dots",
+  "webDir": "dist-native",
+  "server": { "androidScheme": "https" },
+  "ios": { "contentInset": "always" },
+  "android": { "allowMixedContent": false }
+}
