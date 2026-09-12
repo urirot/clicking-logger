@@ -13,6 +13,10 @@
   const NAMES  = { 1: 'Blue', 2: 'Yellow', 3: 'Red' };   // 1 at the bottom of the rail
   const DAY = 86400000;
 
+  // Set by native.bundle.js in the iOS/Android builds, undefined on the web.
+  // Every native branch in this file hangs off it, so the web path is unchanged.
+  const NATIVE = window.CTD_NATIVE || null;
+
   /* ── State ─────────────────────────────────────────────── */
   let clicks = load();          // [{ id, t, b }] kept sorted ascending by t
   let range = '7';        // a single day rarely shows whether anything changed
@@ -478,7 +482,9 @@
     clicks.sort((a, z) => a.t - z.t);
     save();
     render();
-    if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
+    // navigator.vibrate does nothing on iOS; the native adapter uses Haptics there
+    if (NATIVE) NATIVE.haptic();
+    else if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
     maybeNudge();
   }
 
@@ -582,12 +588,23 @@
   });
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify(clicks, null, 2)], { type: 'application/json' });
+    const text = JSON.stringify(clicks, null, 2);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const name = `clicks-${stamp}.json`;
+
+    // A WKWebView ignores a.download silently — no file and no error — so on
+    // native the backup goes through the share sheet instead. Export is this
+    // app's whole backup story; it cannot be allowed to fail quietly.
+    if (NATIVE) {
+      NATIVE.exportFile(name, text).catch(() => toast('Export failed'));
+      return;
+    }
+
+    const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     a.href = url;
-    a.download = `clicks-${stamp}.json`;
+    a.download = name;
     document.body.append(a);
     a.click();
     a.remove();
@@ -665,9 +682,40 @@
   const nudge = $('nudge');
 
   // While any amount is still a placeholder the whole feature stays off, so a
-  // half-configured build never shows anyone a dead donate button.
+  // half-configured build never shows anyone a dead donate button. On native the
+  // same rule applies to the store: nothing is armed until a real, purchasable
+  // product with a real price has come back from Apple or Google.
   const giveLink = $('nudge-give');
-  const nudgeArmed = !giveLink.getAttribute('href').includes('REPLACE-WITH');
+  let nudgeArmed = NATIVE
+    ? false
+    : !giveLink.getAttribute('href').includes('REPLACE-WITH');
+
+  // One button, one amount — the middle tier. Three registered products keep the
+  // console work done once, so offering a choice later needs no store changes.
+  const TIP_DEFAULT = 'tip_medium';
+
+  if (NATIVE) {
+    giveLink.removeAttribute('href');       // not a link any more; it opens a sheet
+    giveLink.setAttribute('role', 'button');
+
+    NATIVE.onTipsReady = () => {
+      const tip = NATIVE.tips.list.find(t => t.id === TIP_DEFAULT) || NATIVE.tips.list[0];
+      if (!tip) return;
+      // The store's own localised price string — never a hard-coded figure, which
+      // would be wrong in every currency but one.
+      giveLink.textContent = `Leave a tip · ${tip.price}`;
+      giveLink.dataset.tipId = tip.id;
+      nudgeArmed = true;
+    };
+
+    // Unlike the Ko-fi link, this is a real signal: the purchase actually
+    // completed. Someone who has paid is never asked again.
+    NATIVE.onTipPaid = () => { closeNudge('never'); toast('Thank you.'); };
+
+    // The store can finish initialising before this file runs, in which case
+    // onTipsReady was assigned too late to be called. Check once, directly.
+    if (NATIVE.tips) NATIVE.onTipsReady();
+  }
 
   const LINES = [
     n => `${n} clicks. So much data.`,
@@ -708,9 +756,19 @@
     try { nudge.showModal(); } catch { return; }   // no dialog support: skip silently
   }
 
-  // We cannot know whether the payment completed — no server to tell us. A tap
-  // on the link is the most we can observe, and it is enough to stop asking.
-  giveLink.addEventListener('click', () => closeNudge('never'));
+  // On the web we cannot know whether the payment completed — no server to tell
+  // us — so a tap on the link is the most we can observe, and it is enough to
+  // stop asking. On native the store tells us, and onTipPaid handles it; a tap
+  // that opens the sheet only counts as "later", so backing out of the purchase
+  // does not silently cost someone the nudge they might have answered.
+  giveLink.addEventListener('click', ev => {
+    if (!NATIVE) { closeNudge('never'); return; }
+    ev.preventDefault();
+    const id = giveLink.dataset.tipId;
+    if (!id) return;
+    NATIVE.tips.buy(id).catch(() => toast('Could not reach the store'));
+    closeNudge('later');
+  });
   $('nudge-later').addEventListener('click', () => closeNudge('later'));
   $('nudge-never').addEventListener('click', () => closeNudge('never'));
   // Escape counts as "later" — the least destructive reading of a dismissal
@@ -762,7 +820,10 @@
   render();
 
   /* ── Offline support ───────────────────────────────────── */
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  // Skipped on native: Capacitor already serves these files locally, and a
+  // network-first worker there can pin a stale shell after an app update with
+  // no deploy to bump CACHE against.
+  if (!NATIVE && 'serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 

@@ -1,5 +1,5 @@
 /* Offline shell cache. Bump CACHE on every deploy so clients pick up new files. */
-const CACHE = 'click-timeline-v16';
+const CACHE = 'click-timeline-v17';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js',
   './manifest.webmanifest', './icon-192.png', './icon-512.png',

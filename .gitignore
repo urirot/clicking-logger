@@ -3,3 +3,19 @@ node_modules/
 package-lock.json
 dist/
 .firebase/
+
+# Native build output. The ios/ and android/ projects are committed — they hold
+# hand-edited config (portrait lock, display name, encryption declaration) that
+# `cap add` would not regenerate — but their copied web assets are not.
+dist-native/
+ios/App/App/public/
+android/app/src/main/assets/public/
+ios/App/App/capacitor.config.json
+android/app/src/main/assets/capacitor.config.json
+ios/App/Pods/
+ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/

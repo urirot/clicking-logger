@@ -28,7 +28,8 @@
 
 Add it to your home screen and it behaves like an app with no signal at all. There
 is no server, no sync and no analytics inside it: every click lives in your own
-browser's `localStorage`, on the device that recorded it.
+browser's `localStorage`, on the device that recorded it. The same source also builds
+real iOS and Android apps — see `NATIVE.md`.
 
 ## What people count
 
@@ -68,20 +69,28 @@ leaving the pad; it greys out when the log is empty.
 on the phone you tap on — there is no server, no database, no account, no analytics.
 The published page is just static HTML/CSS/JS.
 
-Note that GitHub Pages sites are *publicly reachable* even when the repo is private
-(truly private Pages is a GitHub Enterprise Cloud feature). That's fine here: the URL
-serves the empty app to anyone who finds it, and your recorded times aren't in it.
+The site is publicly reachable even though this repo is private, which is fine: the
+URL serves the empty app to anyone who finds it, and your recorded times aren't in it.
+
+The phone apps change nothing here. Tips go through the store's own purchase sheet, so
+no payment detail reaches this code either, and the App Store and Play privacy
+declarations are both **Data Not Collected**.
 
 Use **Export** for a backup before clearing browser data — clearing site data for
 the domain deletes the log.
 
-## Install on Android
+## Installing it
 
-1. Open the Pages URL in Chrome.
+From the web, as a PWA:
+
+1. Open <https://app.countthedots.click> in Chrome.
 2. ⋮ menu → **Add to Home screen** (Chrome may offer **Install app** instead).
 3. Launch from the icon — it opens standalone, no browser chrome.
 
 On iOS: Safari → Share → **Add to Home Screen**.
+
+There are also real iOS and Android builds of the same source, wrapped with Capacitor —
+not yet submitted. `NATIVE.md` covers building and shipping them.
 
 ## How clicks are stored
 
@@ -90,6 +99,12 @@ in the browser's `localStorage` under the key `click-timeline/v1`, written synch
 on every tap. That's the whole storage layer — no database, no API, no account, no sync.
 The code makes zero network requests; the only `fetch` in the project is inside `sw.js`,
 serving the app's own files for offline use.
+
+The phone apps narrow this rather than widening it: `sw.js` is not in the native build at
+all, because Capacitor already serves the files locally. The one thing that does reach
+the network there is the purchase plugin talking to Apple or Google when the tip button
+is pressed — and it carries a product id, nothing else. **No click ever leaves the
+device on any build.**
 
 What that means in practice:
 
@@ -144,23 +159,42 @@ Every 100 clicks, once, the app asks for a coin: a small dialog titled with the
 count, three amounts on three dots, and two ways out — *Nudge me at 200* or
 *Never again*.
 
-Tips go through **Ko-fi**, which sits on top of a personal PayPal account —
-the only route that works from Israel without a business number, a company, or
-a Stripe country that isn't on the list. The tip link in `index.html` is the
-entire configuration; while it still reads `REPLACE-WITH`, **the popup never
-appears at all**, so a half-configured build cannot show anyone a dead button.
+The dialog is the same everywhere. Only the payment rail differs, because the
+two channels are allowed different things.
 
-**One action, not three amounts.** Ko-fi picks the amount on its own page
-(it offers $1 / $5 / $10 there), so three dots promising those figures would
-all land on the same picker and promise something the link cannot keep. The
-three dots stay as the mark; the action is a single *Leave a tip*.
+**On the web, tips go through Ko-fi**, which sits on top of a personal PayPal
+account — the only route that works from Israel without a business number, a
+company, or a Stripe country that isn't on the list. The tip link in
+`index.html` is the entire configuration; while it still reads `REPLACE-WITH`,
+**the popup never appears at all**, so a half-configured build cannot show
+anyone a dead button.
 
-Three deliberate limits, none of them fixable without an account, which is the
-one thing this app refuses to have:
+**In the phone apps, tips go through in-app purchase.** An external payment
+link is permitted on the US App Store storefront and nowhere else, so a Ko-fi
+button shipped worldwide would violate guideline 3.1.1; IAP tipping is
+explicitly allowed. Three consumables are registered (`tip_small` /
+`tip_medium` / `tip_large`) and the button orders the middle one, showing the
+store's own localised price rather than a hard-coded figure. The same guard
+applies: until a real purchasable product comes back from Apple or Google,
+nothing is armed and the dialog never appears. Consumables need no receipt
+validation and no entitlement restore, so this adds no server and no
+third-party SDK — see `NATIVE.md`.
 
-* **It cannot tell whether you paid.** There is no server to hear back from. A
-  tap on an amount is the most it can observe, and that is what stops the
-  asking — so someone can tap, not pay, and never be asked again.
+**One action, not three amounts.** Ko-fi picks the amount on its own page (it
+offers $1 / $5 / $10 there), so three dots promising those figures would all
+land on the same picker and promise something the link cannot keep. The three
+dots stay as the mark; the action is a single *Leave a tip*. That reasoning is
+specific to Ko-fi — the phone apps *do* know the real prices, so a three-amount
+dialog would be honest there, and is the obvious next version of this.
+
+The limits, and which channel each one still binds:
+
+* **The web build cannot tell whether you paid.** There is no server to hear
+  back from. A tap on the link is the most it can observe, and that is what
+  stops the asking — so someone can tap, not pay, and never be asked again.
+  **The phone apps do know**: the purchase callback is a real signal, so only a
+  completed payment stops the asking, and backing out of the sheet counts as
+  *later*.
 * **The answers live in `localStorage`.** Clearing site data resets them, and
   the nudge comes back.
 * **Only a real tap triggers it.** An import can cross several milestones at
@@ -247,11 +281,20 @@ app.js                storage, SVG chart, export
 manifest.webmanifest  PWA metadata
 sw.js                 service worker — network-first, cache fallback
 icon-192/512.png      three palette dots, generated by tools/make_icons.py (no image deps)
+icon-1024.png         store listing icon, same generator
 tools/smoke-test.mjs  jsdom smoke test (npm test)
-firebase.json         Firebase Hosting config (builds dist/, sets cache headers)
-deploy/               Amplify + S3/CloudFront configs and deploy scripts
+deploy/               Amplify deploy script and runbook
 tools/build-dist.sh   copies just the 7 shipping files into dist/
+
+native.js             the only file that imports Capacitor — see NATIVE.md
+tools/build-native.sh builds dist-native/: the web files plus the adapter, minus sw.js
+capacitor.config.json appId, app name, webDir
+ios/ android/         generated Xcode and Android Studio projects
+NATIVE.md             store submission: prerequisites, IAP setup, the checklist
 ```
+
+The web app does not know any of the native files exist. `build-dist.sh` still copies
+the same seven files and the site still runs with no build step and no dependencies.
 
 ## Develop
 
@@ -259,8 +302,9 @@ tools/build-dist.sh   copies just the 7 shipping files into dist/
 npm run serve      # http://localhost:8731
 ```
 
-Run the smoke test (~70 assertions over recording, curve geometry and the shared count
-scale, the event rail, filters, hover, persistence, export, theme):
+Run the smoke test (~170 assertions over recording, curve geometry and the shared count
+scale, the event rail, filters, hover, persistence, export, theme, and the native
+adapter's branches):
 
 ```sh
 npm install && npm test
@@ -273,3 +317,14 @@ npm run icons
 ```
 
 **When deploying a change, bump `CACHE` in `sw.js`** so installed clients pick it up.
+
+Build the phone apps (needs Xcode / Android Studio — see `NATIVE.md`):
+
+```sh
+npm run ios        # build, sync, open Xcode
+npm run android    # build, sync, open Android Studio
+```
+
+The native projects hold *copies* of the web files, so `npm run sync` after any edit to
+`index.html`, `styles.css`, `app.js` or `native.js` — otherwise the change is invisible
+to them.
