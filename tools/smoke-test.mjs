@@ -7,11 +7,19 @@ const appjs = fs.readFileSync(`${dir}/app.js`, 'utf8');
 const errors = [];
 const check = (cond, msg) => { if (!cond) errors.push('FAIL: ' + msg); };
 
+/* The period's count has its own element, .tt-sub. Read it from there rather
+   than from the tooltip's textContent: the date sits immediately above it with
+   no separator, so "Sat, Sep 5" + "0 clicks" concatenates to "Sat, Sep 50
+   clicks" and a /(\d+) clicks?/ over the whole node reports 50. That is what
+   these assertions used to do, which made them fail against a correct app and
+   quietly coupled them to the date format. */
+const periodTotal = tt => Number((tt.querySelector('.tt-sub').textContent.match(/(\d+)/) || [])[1]);
+
 /* jsdom lacks layout, so visible elements are given a size and hidden ones none,
    the way a real browser reports them. Boots a fresh window each call, optionally
    with the log pre-seeded — the rate curve can only be shown to fall against
    history, and taps made through the UI all land at `now`. */
-function boot(seed, extra, transform) {
+function boot(seed, extra, transform, native) {
   const dom = new JSDOM(transform ? transform(pageSrc) : pageSrc, {
     runScripts: 'outside-only', pretendToBeVisual: true, url: 'http://localhost:8731/',
   });
@@ -39,6 +47,10 @@ function boot(seed, extra, transform) {
     D.showModal = function () { this.setAttribute('open', ''); };
     D.close = function () { this.removeAttribute('open'); };
   }
+
+  // The native builds load native.bundle.js first, which sets this global. app.js
+  // reads it once into NATIVE, so installing it here exercises the same branches.
+  if (native) window.CTD_NATIVE = native;
 
   if (seed) window.localStorage.setItem('click-timeline/v1', JSON.stringify(seed));
   for (const k in extra) window.localStorage.setItem(k, extra[k]);   // each JSDOM has its own storage
@@ -204,13 +216,13 @@ check(qa('#chart circle.read-dot').length === 3, 'the crosshair reads all three 
 check(qa('#chart circle.read-dot.is-active').length === 1, 'the tapped colour is emphasised');
 { // every tap the banded period counts is highlighted — no more, no less
   const lit = qa('#chart rect.rail-tick.is-active').length;
-  const total = Number(($('tooltip').textContent.match(/(\d+) clicks?/) || [])[1]);
+  const total = periodTotal($('tooltip'));
   check(lit === total, `highlighted ticks match the period total (${lit} vs ${total})`);
 }
 check(qa('#tooltip .tt-row').length === 3, `tooltip lists all three buttons, got ${qa('#tooltip .tt-row').length}`);
 check(qa('#tooltip .tt-row.is-strong').length === 1, 'the hovered button’s row is emphasised');
 check(/Red|Yellow|Blue/.test($('tooltip').textContent), 'tooltip names the colours in words');
-check(/\d+ clicks?/.test($('tooltip').textContent),
+check(/^\d+ clicks?$/.test($('tooltip').querySelector('.tt-sub').textContent),
   `tooltip totals the period: "${$('tooltip').textContent}"`);
 
 // hovering the rail row works as well as hovering the curve
@@ -385,7 +397,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   for (let i = 1; i <= 12; i++) {
     tapAt(i / 13);
     check(tip().hidden === false, `tapping at ${Math.round((i / 13) * 100)}% across the plot reads a period`);
-    const total = Number((tip().textContent.match(/(\d+) clicks?/) || [])[1]);
+    const total = periodTotal(tip());
     check(litOn() === total, `and lights exactly that period's taps (${litOn()} vs ${total})`);
     if (total === 0) anyQuiet = true; else anyBusy = true;
   }
@@ -578,6 +590,65 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   toggleDrawer(); await tick();
   check(g('data-drawer').open === false, 'drawer collapsed');
   check(g('reset-bar').hidden === true, 'closing the drawer closes the warning with it');
+}
+
+
+/* --- The native (Capacitor) branches. app.js must behave exactly as before when
+   window.CTD_NATIVE is absent, and route through the adapter when it is. */
+{
+  const calls = { haptic: 0, exported: null, bought: null };
+  const stub = {
+    platform: 'ios',
+    haptic() { calls.haptic++; },
+    exportFile(name, text) { calls.exported = { name, text }; return Promise.resolve(); },
+    tips: { list: [{ id: 'tip_medium', price: '₪9.90' }], buy(id) { calls.bought = id; return Promise.resolve(); } },
+  };
+  const w = boot([{ id: 'z', t: Date.now(), b: 1 }], null, null, stub);
+  const g = id => w.document.getElementById(id);
+  const hit = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+
+  // Export: a.download is a silent no-op in a WKWebView, so it must not be used.
+  // jsdom has no createObjectURL, and without it the web fallback throws before
+  // it reaches createElement('a') — which would make the assertion below
+  // unfailable. Stub it so a regression really does build the link.
+  w.URL.createObjectURL = () => 'blob:stub';
+  w.URL.revokeObjectURL = () => {};
+  let madeDownloadLink = false;
+  const realCreate = w.document.createElement.bind(w.document);
+  w.document.createElement = tag => {
+    const el = realCreate(tag);
+    if (tag === 'a') madeDownloadLink = true;
+    return el;
+  };
+  hit(g('export'));
+  check(calls.exported !== null, 'native export goes through the adapter');
+  check(!madeDownloadLink, 'native export never falls back to an <a download>');
+  check(/^clicks-.*\.json$/.test(calls.exported?.name || ''), `native export keeps the filename, got ${calls.exported?.name}`);
+  check(calls.exported && JSON.parse(calls.exported.text).length === 1, 'native export carries the log');
+
+  // Haptics: navigator.vibrate does nothing on iOS.
+  hit(w.document.querySelector('.tap[data-btn="2"]'));
+  check(calls.haptic === 1, `a tap fires one haptic, got ${calls.haptic}`);
+
+  // The tip jar is a store sheet, not a link, and shows the store's own price.
+  const give = g('nudge-give');
+  check(!give.hasAttribute('href'), 'the tip control is not a link on native');
+  check(give.textContent.includes('₪9.90'), `the tip button shows the store price, got "${give.textContent}"`);
+  hit(give);
+  check(calls.bought === 'tip_medium', `tapping it orders the default tip, got ${calls.bought}`);
+  // Backing out of the sheet must not silently cost them the nudge.
+  check(w.localStorage.getItem('click-timeline/nudge-off') !== '1',
+    'opening the sheet counts as "later", not "never"');
+  w.CTD_NATIVE.onTipPaid();
+  check(w.localStorage.getItem('click-timeline/nudge-off') === '1',
+    'a completed purchase stops the asking for good');
+}
+
+{ // ...and with no adapter the web paths are untouched
+  const w = boot([{ id: 'z', t: Date.now(), b: 1 }]);
+  const give = w.document.getElementById('nudge-give');
+  check(give.hasAttribute('href'), 'the tip control is still a link on the web');
+  check(/ko-fi|REPLACE-WITH/.test(give.getAttribute('href')), 'the web tip link is unchanged');
 }
 
 console.log(errors.length ? errors.join('\n') : '✓ all smoke checks passed');
