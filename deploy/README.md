@@ -10,14 +10,14 @@ That rules out one option and makes the rest equivalent in outcome:
 
 | Route | HTTPS | Home-screen install | Setup | Deploy command |
 |---|---|---|---|---|
-| **Firebase Hosting** | ✅ | ✅ | Google account, `npm i -g firebase-tools` | `firebase deploy` |
 | **AWS Amplify Hosting** | ✅ | ✅ | AWS creds only | `./deploy/deploy-amplify.sh` |
 | **S3 + CloudFront** | ✅ | ✅ | ~6 commands, most moving parts | `./deploy/deploy-s3.sh` |
 | **S3 website endpoint** | ❌ | ❌ | 5 commands | `./deploy/create-website-bucket.sh` |
 
-**Firebase and Amplify are equally easy** — pick by which account you'd rather use.
-Amplify is the AWS answer to Firebase Hosting: managed storage, CDN and a TLS cert on
-`*.amplifyapp.com`, with no bucket to configure.
+**Amplify is the route in use.** It gives managed storage, a CDN and a TLS cert on
+`*.amplifyapp.com` with no bucket to configure, and it redeploys from git on push.
+The S3 routes below are kept as a record of the alternatives that were weighed, not
+because anything runs on them.
 
 > **Amplify does not serve from an S3 bucket you own.** It's a separate service with its
 > own managed storage — that's why it gets HTTPS for free. If you specifically want your
@@ -28,34 +28,6 @@ already installed the app keep serving the old build from their service-worker c
 
 ---
 
-## Firebase Hosting
-
-```sh
-npm install -g firebase-tools
-firebase login                      # opens a browser
-firebase projects:create            # or reuse an existing project
-```
-
-Put the project id into `.firebaserc` (replace `PROJECT_ID_HERE`), or let the CLI do it:
-
-```sh
-firebase use --add
-```
-
-Then, from the repo root:
-
-```sh
-firebase deploy --only hosting
-```
-
-`firebase.json` is already configured: it builds `dist/` first (via `tools/build-dist.sh`,
-so tests and deploy scripts never get uploaded), sets `no-cache` on `index.html` / `sw.js`
-/ `app.js` / `styles.css`, a week on the icons, and the correct
-`application/manifest+json` type on the manifest.
-
-Your URL: `https://<project-id>.web.app`
-
----
 
 ## AWS Amplify Hosting
 
@@ -178,5 +150,3 @@ personal data.
 | `bucket-policy-public.json` | S3 website |
 | `bucket-policy-cloudfront.json` | S3 + CloudFront |
 | `cloudfront-oac.json`, `cloudfront-distribution.json` | S3 + CloudFront |
-
-Firebase config lives at the repo root (`firebase.json`, `.firebaserc`).
