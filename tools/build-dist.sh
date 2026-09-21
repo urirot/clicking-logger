@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-FILES=(index.html styles.css app.js sw.js manifest.webmanifest icon-192.png icon-512.png)
+FILES=(index.html styles.css app.js sw.js manifest.webmanifest icon-192.png icon-512.png privacy.html)
 
 rm -rf dist
 mkdir -p dist

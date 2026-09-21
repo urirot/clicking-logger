@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for the App target. Required since 2024.
+
+  @capacitor/ios ships one for the Capacitor framework itself, but that covers
+  the framework, not this app, and none of the four plugins (filesystem, haptics,
+  share, cordova-plugin-purchase) ship one at all. Without this file the first
+  upload comes back with an ITMS-91053 "Missing API declaration" warning.
+
+  The collection arrays are empty and that is the truth, not an omission: the app
+  has no network code, no analytics and no account. The store privacy label is
+  "Data Not Collected" on both platforms for the same reason.
+
+  UserDefaults is declared because Capacitor's runtime and the WKWebView's local
+  storage both reach it, and it is a "required reason" API. CA92.1 is the reason
+  code for reading and writing only this app's own defaults — which is all that
+  happens; nothing here touches another app's or a group container's.
+
+  If Apple's post-upload email names an API this file does not declare, add it
+  here rather than guessing ahead of time — that email is the authority.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

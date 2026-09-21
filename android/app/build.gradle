@@ -1,5 +1,27 @@
 apply plugin: 'com.android.application'
 
+/* Release signing — the upload key.
+   Under Play App Signing, Google holds the *app signing* key and generates it
+   for us; this is the *upload* key, which only proves an upload came from us.
+   It is the one thing here that cannot be regenerated casually: every future
+   upload must be signed with the same key, so it lives outside the repo and its
+   password lives in a password manager.
+
+   Local builds read android/keystore.properties (gitignored). CI reads the same
+   four values from the environment, so no secret is ever committed. When neither
+   is present the release config is simply not defined and `assembleDebug` still
+   works — which is what a contributor without the key needs. */
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def ctdStoreFile = keystoreProps['storeFile'] ?: System.getenv('CTD_KEYSTORE_FILE')
+def ctdStorePassword = keystoreProps['storePassword'] ?: System.getenv('CTD_KEYSTORE_PASSWORD')
+def ctdKeyAlias = keystoreProps['keyAlias'] ?: System.getenv('CTD_KEY_ALIAS')
+def ctdKeyPassword = keystoreProps['keyPassword'] ?: System.getenv('CTD_KEY_PASSWORD')
+def ctdCanSign = ctdStoreFile != null && file(ctdStoreFile).exists()
+
 android {
     namespace = "click.countthedots.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +38,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (ctdCanSign) {
+            release {
+                storeFile file(ctdStoreFile)
+                storePassword ctdStorePassword
+                keyAlias ctdKeyAlias
+                keyPassword ctdKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            /* R8 left off deliberately. cordova-plugin-purchase reaches its
+               Java bridge by reflection, so shrinking it is a real risk for a
+               binary whose whole payload is a 35 KB web app — nothing to gain,
+               a silent billing failure to lose. */
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (ctdCanSign) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
