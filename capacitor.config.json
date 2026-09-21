@@ -3,6 +3,6 @@
   "appName": "Count the Dots",
   "webDir": "dist-native",
   "server": { "androidScheme": "https" },
-  "ios": { "contentInset": "always" },
+  "ios": { "contentInset": "never" },
   "android": { "allowMixedContent": false }
 }
