@@ -94,13 +94,18 @@ echo
 keytool -list -v -keystore "$STORE" -storepass "$PW" -alias "$ALIAS" \
   | sed -n '/Certificate fingerprints/,/SHA256/p'
 echo
-echo "To build on CI instead, add these repository secrets:"
-echo "  CTD_KEYSTORE_BASE64    $(base64 < "$STORE" | tr -d '\n' | cut -c1-24)…  (full value below)"
-echo "  CTD_KEYSTORE_PASSWORD  the password you just chose"
-echo "  CTD_KEY_ALIAS          $ALIAS"
-echo "  CTD_KEY_PASSWORD       the same password"
-echo
-echo "Full base64 of the keystore, for CTD_KEYSTORE_BASE64:"
-echo
-base64 < "$STORE" | tr -d '\n'
-echo
+# The keystore base64 is only wanted when wiring CI, and printing it by default
+# puts the entire private key into terminal scrollback (and whatever logs that
+# terminal keeps) for everyone who never sets CI up. Opt in.
+if [[ "${CTD_PRINT_CI_SECRET:-}" == "1" ]]; then
+  echo "CI secrets — CTD_KEYSTORE_PASSWORD (the password you chose),"
+  echo "             CTD_KEY_ALIAS=$ALIAS, CTD_KEY_PASSWORD (the same),"
+  echo "             CTD_KEYSTORE_BASE64 (below). Treat the next line as the key itself."
+  echo
+  base64 < "$STORE" | tr -d '\n'
+  echo
+else
+  echo "Building on CI later? Re-run with CTD_PRINT_CI_SECRET=1 to print the"
+  echo "base64 keystore for a repository secret. Not printed by default: it is"
+  echo "the whole private key, and scrollback is not a good place for it."
+fi
