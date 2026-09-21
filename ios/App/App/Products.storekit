@@ -1,71 +1,35 @@
 {
-  "identifier" : "CTD00001",
-  "nonRenewingSubscriptions" : [
-
-  ],
-  "products" : [
+  "identifier": "CTD00001",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "displayPrice" : "0.99",
-      "familyShareable" : false,
-      "internalID" : "CTD10001",
-      "localizations" : [
+      "displayPrice": "2.99",
+      "familyShareable": false,
+      "internalID": "CTD10002",
+      "localizations": [
         {
-          "description" : "A small thank-you to the developer. Unlocks nothing — the app is already yours.",
-          "displayName" : "Throw a coin in",
-          "locale" : "en_US"
+          "description": "A thank-you to the developer. Unlocks nothing \u2014 the app is already yours.",
+          "displayName": "Leave a tip",
+          "locale": "en_US"
         }
       ],
-      "productID" : "tip_small",
-      "referenceName" : "Tip — small",
-      "type" : "Consumable"
-    },
-    {
-      "displayPrice" : "2.99",
-      "familyShareable" : false,
-      "internalID" : "CTD10002",
-      "localizations" : [
-        {
-          "description" : "A thank-you to the developer. Unlocks nothing — the app is already yours.",
-          "displayName" : "Leave a tip",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "tip_medium",
-      "referenceName" : "Tip — medium",
-      "type" : "Consumable"
-    },
-    {
-      "displayPrice" : "5.99",
-      "familyShareable" : false,
-      "internalID" : "CTD10003",
-      "localizations" : [
-        {
-          "description" : "A generous thank-you to the developer. Unlocks nothing — the app is already yours.",
-          "displayName" : "Leave a big tip",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "tip_large",
-      "referenceName" : "Tip — large",
-      "type" : "Consumable"
+      "productID": "tip_medium",
+      "referenceName": "Tip \u2014 medium",
+      "type": "Consumable"
     }
   ],
-  "settings" : {
-    "_applicationInternalID" : "",
-    "_developerTeamID" : "",
-    "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 0,
-    "_locale" : "en_US",
-    "_storefront" : "USA",
-    "_storeKitErrors" : [
-
-    ]
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_failTransactionsEnabled": false,
+    "_lastSynchronizedDate": 0,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
   },
-  "subscriptionGroups" : [
-
-  ],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }
