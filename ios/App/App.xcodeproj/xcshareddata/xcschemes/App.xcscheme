@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2700"
-   version = "1.7">
+   version = "1.3">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
@@ -30,12 +30,6 @@
       <Testables>
       </Testables>
    </TestAction>
-   <!-- StoreKitConfigurationFileReference is why this scheme is shared rather
-        than left to Xcode to synthesise: it resolves the three consumables from
-        Products.storekit instead of the network, so the 50-click tip dialog
-        arms in a Debug run with nothing created in App Store Connect. The path
-        is relative to this file — up out of xcschemes/xcshareddata/App.xcodeproj,
-        then into App/. It only affects a debugger launch; Release ignores it. -->
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
@@ -57,7 +51,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../../App/Products.storekit">
+         identifier = "../../App/Products.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
