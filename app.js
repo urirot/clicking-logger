@@ -8,7 +8,7 @@
   const DRAWER_KEY = 'click-timeline/drawer';
   const NUDGE_NEXT = 'click-timeline/nudge-next';   // count at which to ask again
   const NUDGE_OFF  = 'click-timeline/nudge-off';    // '1' once they say never
-  const NUDGE_STEP = 100;
+  const NUDGE_STEP = 50;
   const SERIES = { 1: 'var(--series-1)', 2: 'var(--series-2)', 3: 'var(--series-3)' };
   const NAMES  = { 1: 'Blue', 2: 'Yellow', 3: 'Red' };   // 1 at the bottom of the rail
   const DAY = 86400000;
