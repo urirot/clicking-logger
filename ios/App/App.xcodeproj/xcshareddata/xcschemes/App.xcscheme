@@ -32,7 +32,7 @@
    </TestAction>
    <!-- StoreKitConfigurationFileReference is why this scheme is shared rather
         than left to Xcode to synthesise: it resolves the three consumables from
-        Products.storekit instead of the network, so the 100-click tip dialog
+        Products.storekit instead of the network, so the 50-click tip dialog
         arms in a Debug run with nothing created in App Store Connect. The path
         is relative to this file — up out of xcschemes/xcshareddata/App.xcodeproj,
         then into App/. It only affects a debugger launch; Release ignores it. -->
