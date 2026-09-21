@@ -3,6 +3,13 @@ customHeaders:
     headers:
       - key: 'Cache-Control'
         value: 'no-cache, must-revalidate'
+  # Same treatment as index.html: it is a document that gets corrected, and the
+  # store listings point at it by URL, so a cached copy is the one thing it must
+  # not be.
+  - pattern: '/privacy.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache, must-revalidate'
   - pattern: '/sw.js'
     headers:
       - key: 'Cache-Control'

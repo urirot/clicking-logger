@@ -462,7 +462,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
 
 
 /* --- The milestone nudge: configured links arm it, a real tap at a round
-   hundred opens it, an import never does. */
+   fifty opens it, an import never does. */
 {
   const dead = html => html.replace(/https:\/\/ko-fi\.com\/countthedots/g, 'https://REPLACE-WITH-TIP-LINK');
   const at = n => Array.from({ length: n },
@@ -473,7 +473,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
 
   { // a placeholder link keeps the whole feature switched off
-    const w = boot(at(99), null, dead);
+    const w = boot(at(49), null, dead);
     tapOn(w);
     check(w.document.getElementById('nudge').open !== true,
       'a placeholder tip link means the popup never shows');
@@ -484,14 +484,14 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     (pageSrc.match(/id="nudge-give"[\s\S]{0,200}?href="([^"]+)"/) || ['', ''])[1]),
     'the shipped tip link points at Ko-fi');
 
-  const w = boot(at(99));
+  const w = boot(at(49));
   const dlg = () => w.document.getElementById('nudge');
-  check(dlg().open !== true, 'closed before the hundredth click');
+  check(dlg().open !== true, 'closed before the fiftieth click');
   tapOn(w);
-  check(dlg().open === true, 'the hundredth click opens the nudge');
-  check(w.document.getElementById('nudge-title').textContent === '100 clicks. So much data.',
+  check(dlg().open === true, 'the fiftieth click opens the nudge');
+  check(w.document.getElementById('nudge-title').textContent === '50 clicks. So much data.',
     `titled with the count, got "${w.document.getElementById('nudge-title').textContent}"`);
-  check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 200',
+  check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 100',
     `later names the next milestone, got "${w.document.getElementById('nudge-later').textContent}"`);
   check(w.document.querySelectorAll('.nudge-mark i').length === 3, 'the three dots stay as the mark');
   check(w.document.getElementById('nudge-give').rel.includes('noopener'),
@@ -499,12 +499,24 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
 
   fire(w, 'nudge-later');
   check(dlg().open !== true, 'later closes it');
-  check(w.localStorage.getItem('click-timeline/nudge-next') === '200', 'later stores the next milestone');
+  check(w.localStorage.getItem('click-timeline/nudge-next') === '100', 'later stores the next milestone');
   tapOn(w);
-  check(dlg().open !== true, 'and it stays shut on click 101');
+  check(dlg().open !== true, 'and it stays shut on click 51');
+
+  { // ...but it comes back at the next milestone, and keeps coming until cancelled
+    const w5 = boot(at(99), { 'click-timeline/nudge-next': '100' });
+    const d5 = () => w5.document.getElementById('nudge');
+    check(d5().open !== true, 'closed at 99 with the next milestone pending');
+    tapOn(w5);
+    check(d5().open === true, 'the hundredth click asks again');
+    check(w5.document.getElementById('nudge-title').textContent === '100 clicks. The data grows.',
+      `and moves to the next line, got "${w5.document.getElementById('nudge-title').textContent}"`);
+    check(w5.document.getElementById('nudge-later').textContent === 'Nudge me at 150',
+      `pointing one step further on, got "${w5.document.getElementById('nudge-later').textContent}"`);
+  }
 
   { // an import that vaults past a milestone must not ambush anyone
-    const w2 = boot(at(99));
+    const w2 = boot(at(49));
     const input = w2.document.getElementById('import-file');
     const rows = at(400).map(c => ({ t: c.t, b: c.b }));
     Object.defineProperty(input, 'files', {
@@ -518,14 +530,14 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   }
 
   { // never is permanent, and tapping an amount counts as never
-    const w3 = boot(at(99));
+    const w3 = boot(at(49));
     tapOn(w3);
     fire(w3, 'nudge-never');
     check(w3.localStorage.getItem('click-timeline/nudge-off') === '1', 'never is recorded');
-    check(boot(at(199), { 'click-timeline/nudge-off': '1' })
+    check(boot(at(99), { 'click-timeline/nudge-off': '1' })
       .document.getElementById('nudge').open !== true, 'and survives a reload');
 
-    const w4 = boot(at(99));
+    const w4 = boot(at(49));
     tapOn(w4);
     w4.document.getElementById('nudge-give')
       .dispatchEvent(new w4.MouseEvent('click', { bubbles: true }));
