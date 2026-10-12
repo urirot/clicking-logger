@@ -491,7 +491,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   check(dlg().open === true, 'the fiftieth click opens the nudge');
   check(w.document.getElementById('nudge-title').textContent === '50 clicks. So much data.',
     `titled with the count, got "${w.document.getElementById('nudge-title').textContent}"`);
-  check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 100',
+  check(w.document.getElementById('nudge-later').textContent === 'Ask me again at 100 clicks',
     `later names the next milestone, got "${w.document.getElementById('nudge-later').textContent}"`);
   check(w.document.querySelectorAll('.nudge-mark i').length === 3, 'the three dots stay as the mark');
   check(w.document.getElementById('nudge-give').rel.includes('noopener'),
@@ -511,7 +511,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     check(d5().open === true, 'the hundredth click asks again');
     check(w5.document.getElementById('nudge-title').textContent === '100 clicks. The data grows.',
       `and moves to the next line, got "${w5.document.getElementById('nudge-title').textContent}"`);
-    check(w5.document.getElementById('nudge-later').textContent === 'Nudge me at 150',
+    check(w5.document.getElementById('nudge-later').textContent === 'Ask me again at 150 clicks',
       `pointing one step further on, got "${w5.document.getElementById('nudge-later').textContent}"`);
   }
 

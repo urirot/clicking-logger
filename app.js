@@ -752,7 +752,7 @@
 
     const hit = Math.floor(clicks.length / NUDGE_STEP) * NUDGE_STEP;
     $('nudge-title').textContent = LINES[(hit / NUDGE_STEP - 1) % LINES.length](hit);
-    $('nudge-later').textContent = `Nudge me at ${nextMilestone(clicks.length)}`;
+    $('nudge-later').textContent = `Ask me again at ${nextMilestone(clicks.length)} clicks`;
     try { nudge.showModal(); } catch { return; }   // no dialog support: skip silently
   }
 
