@@ -95,6 +95,17 @@ at `App.xcodeproj/xcshareddata/xcschemes/App.xcscheme` sets
 `StoreKitConfigurationFileReference` on its Launch action. Open the project and press
 Run.
 
+> [!warning] Do not hand-write that reference.
+> The path is `../../App/Products.storekit`. It is **not** relative to the `.xcscheme`
+> file, which is the obvious reading and is wrong — three levels up resolves to the
+> right file on disk and Xcode still ignores it silently. There is no error: the app
+> launches, asks the real store, gets `0 product(s) and 3 invalid identifier(s)` back,
+> and the dialog simply never appears, which looks exactly like the feature being
+> broken. Set it once through **Product → Scheme → Edit Scheme → Run → Options →
+> StoreKit Configuration** and commit what Xcode writes. Note that Xcode rewrites the
+> whole scheme file when that sheet closes, stripping any comments — which is why this
+> explanation lives here and not in the scheme.
+
 It has to be a *debugger* launch. `xcrun simctl launch` cannot apply a StoreKit
 configuration — there is no simctl flag for it — so an app installed that way asks
 the real store, gets `0 product(s) and 3 invalid identifier(s)` back, and correctly

@@ -157,7 +157,7 @@ one person's taste — including the author's, who did not want another button.
 
 Every 50 clicks, once, the app asks for a coin: a small dialog titled with the
 count, the three dots as its mark, a single action, and two ways out —
-*Nudge me at 100* or *Never again*.
+*Ask me again at 100 clicks* or *Never again*.
 
 The dialog is the same everywhere. Only the payment rail differs, because the
 two channels are allowed different things.

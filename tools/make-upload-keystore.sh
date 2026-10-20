@@ -38,10 +38,30 @@ echo "Choose a password you can retrieve in twenty years. Put it in your passwor
 echo "manager NOW, before you type it — there is no recovery from a lost password,"
 echo "only a support ticket."
 echo
-read -rsp "Keystore password: " PW; echo
-read -rsp "Again: " PW2; echo
-[[ "$PW" == "$PW2" ]] || { echo "Passwords differ." >&2; exit 1; }
-[[ ${#PW} -ge 12 ]] || { echo "Use at least 12 characters." >&2; exit 1; }
+# Retry rather than exit. A silent prompt gives no feedback, and a paste that
+# carries a trailing newline or a bracketed-paste control character mismatches
+# against a typed second entry -- which is indistinguishable, at the prompt, from
+# genuinely mistyping it. Trim both, and on a mismatch show the lengths (never the
+# values) so the cause is visible.
+trim () { printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+
+while :; do
+  read -rsp "Keystore password: " PW_RAW; echo
+  read -rsp "Again: " PW2_RAW; echo
+  PW=$(trim "$PW_RAW"); PW2=$(trim "$PW2_RAW")
+
+  if [[ "$PW" != "$PW2" ]]; then
+    echo "  Those differ (${#PW} chars vs ${#PW2}). If you pasted, paste both times." >&2
+    echo >&2
+    continue
+  fi
+  if [[ ${#PW} -lt 12 ]]; then
+    echo "  ${#PW} characters. Use at least 12 -- this key signs every build forever." >&2
+    echo >&2
+    continue
+  fi
+  break
+done
 
 mkdir -p "$STORE_DIR"
 chmod 700 "$STORE_DIR"
@@ -74,13 +94,18 @@ echo
 keytool -list -v -keystore "$STORE" -storepass "$PW" -alias "$ALIAS" \
   | sed -n '/Certificate fingerprints/,/SHA256/p'
 echo
-echo "To build on CI instead, add these repository secrets:"
-echo "  CTD_KEYSTORE_BASE64    $(base64 < "$STORE" | tr -d '\n' | cut -c1-24)…  (full value below)"
-echo "  CTD_KEYSTORE_PASSWORD  the password you just chose"
-echo "  CTD_KEY_ALIAS          $ALIAS"
-echo "  CTD_KEY_PASSWORD       the same password"
-echo
-echo "Full base64 of the keystore, for CTD_KEYSTORE_BASE64:"
-echo
-base64 < "$STORE" | tr -d '\n'
-echo
+# The keystore base64 is only wanted when wiring CI, and printing it by default
+# puts the entire private key into terminal scrollback (and whatever logs that
+# terminal keeps) for everyone who never sets CI up. Opt in.
+if [[ "${CTD_PRINT_CI_SECRET:-}" == "1" ]]; then
+  echo "CI secrets — CTD_KEYSTORE_PASSWORD (the password you chose),"
+  echo "             CTD_KEY_ALIAS=$ALIAS, CTD_KEY_PASSWORD (the same),"
+  echo "             CTD_KEYSTORE_BASE64 (below). Treat the next line as the key itself."
+  echo
+  base64 < "$STORE" | tr -d '\n'
+  echo
+else
+  echo "Building on CI later? Re-run with CTD_PRINT_CI_SECRET=1 to print the"
+  echo "base64 keystore for a repository secret. Not printed by default: it is"
+  echo "the whole private key, and scrollback is not a good place for it."
+fi

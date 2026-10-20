@@ -18,8 +18,9 @@ const periodTotal = tt => Number((tt.querySelector('.tt-sub').textContent.match(
 /* jsdom lacks layout, so visible elements are given a size and hidden ones none,
    the way a real browser reports them. Boots a fresh window each call, optionally
    with the log pre-seeded — the rate curve can only be shown to fall against
-   history, and taps made through the UI all land at `now`. */
-function boot(seed, extra, transform, native) {
+   history, and taps made through the UI all land at `now`. `locale` stands in for
+   the phone's language, which app.js only sees as Intl's default locale. */
+function boot(seed, extra, transform, native, locale) {
   const dom = new JSDOM(transform ? transform(pageSrc) : pageSrc, {
     runScripts: 'outside-only', pretendToBeVisual: true, url: 'http://localhost:8731/',
   });
@@ -51,6 +52,11 @@ function boot(seed, extra, transform, native) {
   // The native builds load native.bundle.js first, which sets this global. app.js
   // reads it once into NATIVE, so installing it here exercises the same branches.
   if (native) window.CTD_NATIVE = native;
+
+  if (locale) {
+    const DTF = window.Intl.DateTimeFormat;
+    window.Intl.DateTimeFormat = function (l, o) { return new DTF(l === undefined ? locale : l, o); };
+  }
 
   if (seed) window.localStorage.setItem('click-timeline/v1', JSON.stringify(seed));
   for (const k in extra) window.localStorage.setItem(k, extra[k]);   // each JSDOM has its own storage
@@ -491,7 +497,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   check(dlg().open === true, 'the fiftieth click opens the nudge');
   check(w.document.getElementById('nudge-title').textContent === '50 clicks. So much data.',
     `titled with the count, got "${w.document.getElementById('nudge-title').textContent}"`);
-  check(w.document.getElementById('nudge-later').textContent === 'Nudge me at 100',
+  check(w.document.getElementById('nudge-later').textContent === 'Ask me again at 100 clicks',
     `later names the next milestone, got "${w.document.getElementById('nudge-later').textContent}"`);
   check(w.document.querySelectorAll('.nudge-mark i').length === 3, 'the three dots stay as the mark');
   check(w.document.getElementById('nudge-give').rel.includes('noopener'),
@@ -511,7 +517,7 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     check(d5().open === true, 'the hundredth click asks again');
     check(w5.document.getElementById('nudge-title').textContent === '100 clicks. The data grows.',
       `and moves to the next line, got "${w5.document.getElementById('nudge-title').textContent}"`);
-    check(w5.document.getElementById('nudge-later').textContent === 'Nudge me at 150',
+    check(w5.document.getElementById('nudge-later').textContent === 'Ask me again at 150 clicks',
       `pointing one step further on, got "${w5.document.getElementById('nudge-later').textContent}"`);
   }
 
@@ -661,6 +667,28 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
   const give = w.document.getElementById('nudge-give');
   check(give.hasAttribute('href'), 'the tip control is still a link on the web');
   check(/ko-fi|REPLACE-WITH/.test(give.getAttribute('href')), 'the web tip link is unchanged');
+}
+
+{ // A phone set to Hebrew still gets English dates, in its own 24-hour clock
+  const now = Date.now(), DAY = 86400000;
+  const w = boot([3, 2, 1].map((d, i) => ({ id: `he-${i}`, t: now - d * DAY, b: 1 })),
+    null, null, null, 'he-IL');
+  const d = w.document;
+  const fire = sel => d.querySelector(sel).dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  fire('#tab-data');
+  fire('.chip[data-range="7"]');
+  d.getElementById('chart').dispatchEvent(new w.MouseEvent('pointerdown', {
+    bubbles: true, clientX: 48 + (640 - 14 - 48) * 0.5, clientY: 60,
+  }));
+  check(d.getElementById('tooltip').hidden === false, 'on a Hebrew phone, tapping the chart reads a period');
+  const hebrew = /[\u0590-\u05FF]/;
+  const axis = [...d.querySelectorAll('#chart text')].map(t => t.textContent).join(' | ');
+  check(!hebrew.test(axis), `axis dates are English on a Hebrew phone, got "${axis}"`);
+  const date = d.querySelector('#tooltip .tt-val').textContent;   // the count sits flush against it
+  check(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/.test(date),
+    `the tooltip's date is English, day before month as in Israel, got "${date}"`);
+  const last = d.getElementById('last-line').textContent;
+  check(/at \d{2}:\d{2}:\d{2}$/.test(last), `the clock stays 24-hour, got "${last}"`);
 }
 
 console.log(errors.length ? errors.join('\n') : '✓ all smoke checks passed');
