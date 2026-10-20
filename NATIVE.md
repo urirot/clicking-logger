@@ -9,7 +9,7 @@ as plain files opened from disk. Everything native is additive.
 ```
 native.js            the ONLY file that imports Capacitor. Bundled to an IIFE and
                      loaded before app.js in the native builds; sets window.CTD_NATIVE
-app.js               unchanged for web. Four native branches, all behind `NATIVE`
+app.js               unchanged for web. Five native branches, all behind `NATIVE`
 tools/build-native.sh  builds dist-native/ — web files + adapter, minus sw.js
 capacitor.config.json  appId click.countthedots.app, webDir dist-native
 ios/ android/        generated projects, with hand-edited config (see below)
@@ -68,6 +68,7 @@ the native projects hold *copies*, so an edit is invisible until you sync.
 | Export goes through the share sheet | `a.download` is a **silent no-op in a WKWebView** — no file, no error. Export is the app's entire backup story. |
 | Haptics on tap | `navigator.vibrate` does nothing on iOS; the pad would feel dead. |
 | Service worker skipped on native | Capacitor already serves the files locally. A network-first worker over `capacitor://localhost` can pin a stale shell after an app update, with no deploy to bump `CACHE` against. |
+| Android Back handled in the app | Without a listener, Back always sent the app to the background, even from the Timeline. Now each press undoes one thing (tip dialog, delete confirmation, pinned reading, Timeline → Tap), and only the Tap screen leaves. Needs `@capacitor/app`. |
 | Tip jar → in-app purchase | The Ko-fi link is permitted on the US storefront only; everywhere else it violates guideline 3.1.1. IAP tipping is explicitly allowed. |
 | Portrait lock | Matches `manifest.webmanifest` and the fixed-height layout. |
 | `CFBundleDisplayName` = `Dots` | Short name under the icon; the keyword-bearing name is the *store listing*, a separate field. |
