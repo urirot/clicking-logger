@@ -44,11 +44,26 @@
   }
 
   /* ── Formatting ────────────────────────────────────────── */
-  const fTime = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-  const fSec  = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const fDay  = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
-  const fWkDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  const fMonth = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
+  // The app's words are English, so its dates are too. Formatting in the phone's
+  // own locale put "14 באוק׳" inside "Week of …" on a phone set to Hebrew. Keep the
+  // phone's region and clock, so he-IL becomes en-IL: "14 Oct" and 15:07, not
+  // "Oct 14" and 03:07 PM. A region with no English variant falls back to plain
+  // English, and the explicit hourCycle still keeps its 24-hour clock.
+  const phone = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions();
+  const DATE_LOCALE = (() => {
+    try {
+      const loc = new Intl.Locale(phone.locale);
+      if (loc.language === 'en') return loc.baseName;
+      const region = loc.maximize().region;
+      return region ? `en-${region}` : 'en';
+    } catch { return 'en'; }
+  })();
+  const fmt = opts => new Intl.DateTimeFormat(DATE_LOCALE, opts);
+  const fTime = fmt({ hour: '2-digit', minute: '2-digit', hourCycle: phone.hourCycle });
+  const fSec  = fmt({ hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: phone.hourCycle });
+  const fDay  = fmt({ day: 'numeric', month: 'short' });
+  const fWkDay = fmt({ weekday: 'short', day: 'numeric', month: 'short' });
+  const fMonth = fmt({ month: 'short', year: 'numeric' });
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
   function startOfToday() {
