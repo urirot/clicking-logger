@@ -8,6 +8,7 @@
    feature-detects that object and falls back to its browser path when it is
    absent, so there is exactly one source tree for web, iOS and Android. */
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -41,6 +42,17 @@ if (Capacitor.isNativePlatform()) {
   };
 
   initTips();
+  if (Capacitor.getPlatform() === 'android') initBack();
+}
+
+/* ── Android back ──────────────────────────────────────────
+   Without a listener, Back always sent the app to the background, even from the
+   Timeline. app.js decides what one press undoes and returns false when nothing
+   is left; only then does the app go to the background, as it did before. */
+function initBack() {
+  App.addListener('backButton', () => {
+    if (!window.CTD_NATIVE.onBack?.()) App.minimizeApp();
+  });
 }
 
 /* ── In-app purchase ───────────────────────────────────────

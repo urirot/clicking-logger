@@ -662,6 +662,47 @@ check(errors.filter(e => /storage/i.test(e)).length === 0, 'no storage-related e
     'a completed purchase stops the asking for good');
 }
 
+{ // Android Back undoes one thing per press, and only leaves from the Tap screen
+  const stub = {
+    platform: 'android', haptic() {}, exportFile: () => Promise.resolve(),
+    tips: { list: [{ id: 'tip_medium', price: '₪9.90' }], buy: () => Promise.resolve() },
+  };
+  const seed = Array.from({ length: 49 }, (_, i) => ({ id: `b${i}`, t: Date.now() - (49 - i) * 60000, b: 1 }));
+  const w = boot(seed, null, null, stub);
+  const g = id => w.document.getElementById(id);
+  const hit = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const back = () => w.CTD_NATIVE.onBack?.();
+  const onTap = () => g('panel-tap').hidden === false;
+
+  check(typeof w.CTD_NATIVE.onBack === 'function', 'app.js gives the adapter a back handler');
+  check(back() === false && onTap(), 'Back on the Tap screen leaves the app');
+
+  hit(w.document.querySelector('.tap[data-btn="1"]'));   // the fiftieth click
+  check(g('nudge').open === true, 'the tip dialog is open');
+  check(back() === true && g('nudge').open !== true, 'Back closes the tip dialog first');
+  check(w.localStorage.getItem('click-timeline/nudge-off') !== '1' &&
+    w.localStorage.getItem('click-timeline/nudge-next') === '100', 'and counts it as "later"');
+  check(onTap(), 'and stays on the Tap screen');
+
+  hit(g('tab-data'));
+  g('data-drawer').open = true;
+  hit(g('reset'));
+  check(g('reset-bar').hidden === false, 'the delete confirmation is open');
+  check(back() === true && g('reset-bar').hidden && !onTap(),
+    'Back cancels the delete confirmation and stays on the Timeline');
+  check(g('data-drawer').open === true, 'without collapsing Data & backup');
+
+  g('chart').dispatchEvent(new w.MouseEvent('pointerdown', {
+    bubbles: true, clientX: 48 + (640 - 14 - 48) * 0.9, clientY: 60,
+  }));
+  check(g('tooltip').hidden === false, 'a reading is pinned');
+  check(back() === true && g('tooltip').hidden && !onTap(), 'Back unpins the reading and stays on the Timeline');
+
+  check(back() === true && onTap(), 'Back from the Timeline returns to the dots');
+  check(g('tab-tap').getAttribute('aria-selected') === 'true', 'and selects the Tap tab');
+  check(back() === false, 'and the next Back leaves the app');
+}
+
 { // ...and with no adapter the web paths are untouched
   const w = boot([{ id: 'z', t: Date.now(), b: 1 }]);
   const give = w.document.getElementById('nudge-give');

@@ -797,6 +797,20 @@
     if (!drawer.open) showReset(false, false);
   });
 
+  /* ── Android back ──────────────────────────────────────────
+     One press undoes one thing, innermost first, the way Escape does on the web:
+     the tip dialog, the delete confirmation, a pinned reading, then the Timeline
+     itself, back to the dots. Returns false when there is nothing left to undo,
+     and native.js then sends the app to the background. */
+  if (NATIVE) NATIVE.onBack = () => {
+    if (nudge.open) closeNudge('later');
+    else if (!resetBar.hidden) showReset(false, false);
+    else if (pinned) clearActive();
+    else if ($('panel-tap').hidden) activateTab($('tab-tap'));
+    else return false;
+    return true;
+  };
+
   /* ── Theme ─────────────────────────────────────────────── */
   const glyphs = { auto: '◐', light: '☀', dark: '☾' };
   function applyTheme(mode) {
